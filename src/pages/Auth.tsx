@@ -21,7 +21,7 @@ const Auth = () => {
 
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -43,7 +43,7 @@ const Auth = () => {
             title: 'Welcome back!',
             description: 'Successfully signed in.',
           });
-          navigate('/');
+          navigate('/dashboard');
         }
       } else {
         const { error } = await signUp(email, password, fullName);
@@ -58,7 +58,7 @@ const Auth = () => {
             title: 'Account created!',
             description: 'Welcome to SwiftRoute.',
           });
-          navigate('/');
+          navigate('/dashboard');
         }
       }
     } catch (error) {
