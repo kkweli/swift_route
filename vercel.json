@@ -1,0 +1,52 @@
+{
+  "version": 2,
+  "name": "swiftroute-mvp",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "api/v1/optimize-route/main.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/v1/optimize-route/(.*)",
+      "dest": "/api/v1/optimize-route/main.py"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dist/$1"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  },
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 30
+    },
+    "api/v1/optimize-route/main.py": {
+      "runtime": "python3.9",
+      "memory": 1024,
+      "maxDuration": 30
+    }
+  }
+}

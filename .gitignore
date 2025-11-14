@@ -7,10 +7,25 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies
 node_modules
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+
+# Build outputs
 dist
 dist-ssr
 *.local
+.vercel
+
+# Environment files
+.env
+.env.local
+.env.*.local
+.api_key
 
 # Editor directories and files
 .vscode/*
@@ -22,4 +37,32 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-.env
+
+# Test files
+test_*.py
+*_test.py
+
+# Large data files
+*.xml
+*.osm
+*.pbf
+
+# OS files
+Thumbs.db
+.DS_Store
+.env.example
+.gitignore
+.vercelignore
+DEPLOYMENT.md
+.gitignore
+READY_TO_DEPLOY.md
+PRODUCTION_READY.md
+FINAL_STATUS.md
+MVP_STATUS.md
+.history
+.qodo
+.vscode
+.kiro
+docs/ARCHITECTURE.md
+supabase/migrations/*.sql
+

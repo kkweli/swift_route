@@ -5,6 +5,15 @@ import type { Database } from './types';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
+// Validate environment variables
+if (!SUPABASE_URL) {
+  throw new Error('VITE_SUPABASE_URL is not defined. Please check your .env file and restart the dev server.');
+}
+
+if (!SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('VITE_SUPABASE_PUBLISHABLE_KEY is not defined. Please check your .env file and restart the dev server.');
+}
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 

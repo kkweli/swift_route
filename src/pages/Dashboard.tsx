@@ -1,9 +1,11 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Navigation, MapPin, Route, Users, BarChart3, LogOut } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Navigation, MapPin, Route, Users, BarChart3, LogOut, Settings, Code } from 'lucide-react';
+import { APIManagement } from '@/components/APIManagement';
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
@@ -55,90 +57,131 @@ const Dashboard = () => {
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Welcome back!</h2>
           <p className="text-muted-foreground">
-            Your intelligent routing dashboard
+            Your SwiftRoute B2B API platform dashboard
           </p>
         </div>
 
-        {/* Feature Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <Route className="h-8 w-8 text-primary mb-2" />
-              <CardTitle>Route Planning</CardTitle>
-              <CardDescription>
-                Create optimized routes using advanced algorithms
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button className="w-full">Plan Route</Button>
-            </CardContent>
-          </Card>
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="api-management">API Management</TabsTrigger>
+            <TabsTrigger value="route-planning">Route Planning</TabsTrigger>
+          </TabsList>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <MapPin className="h-8 w-8 text-accent mb-2" />
-              <CardTitle>Saved Routes</CardTitle>
-              <CardDescription>
-                Access and manage your saved routes
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" className="w-full">View Routes</Button>
-            </CardContent>
-          </Card>
+          <TabsContent value="overview" className="space-y-6">
+            {/* Feature Cards */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <Code className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>API Management</CardTitle>
+                  <CardDescription>
+                    Test and manage your SwiftRoute API integration
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button className="w-full" onClick={() => document.querySelector('[value="api-management"]')?.click()}>
+                    Manage API
+                  </Button>
+                </CardContent>
+              </Card>
 
-          <Card className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <BarChart3 className="h-8 w-8 text-primary mb-2" />
-              <CardTitle>Analytics</CardTitle>
-              <CardDescription>
-                View routing performance and statistics
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button variant="outline" className="w-full">View Stats</Button>
-            </CardContent>
-          </Card>
-        </div>
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <Route className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>Route Optimization</CardTitle>
+                  <CardDescription>
+                    Test route optimization with GNN algorithms
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full" disabled>
+                    Coming Soon
+                  </Button>
+                </CardContent>
+              </Card>
 
-        {/* Info Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>About SwiftRoute</CardTitle>
-            <CardDescription>
-              Advanced routing system with real-time optimization
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <Users className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <h3 className="font-semibold mb-1">Multi-Algorithm Support</h3>
-                <p className="text-sm text-muted-foreground">
-                  Choose from Dijkstra, A*, or advanced GNN-based routing
-                </p>
-              </div>
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <BarChart3 className="h-8 w-8 text-accent mb-2" />
+                  <CardTitle>Usage Analytics</CardTitle>
+                  <CardDescription>
+                    View API usage statistics and billing
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full" onClick={() => document.querySelector('[value="api-management"]')?.click()}>
+                    View Analytics
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-accent mt-0.5" />
-              <div>
-                <h3 className="font-semibold mb-1">Real-Time Traffic</h3>
-                <p className="text-sm text-muted-foreground">
-                  Routes adapt to current traffic conditions
+
+            {/* Info Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>SwiftRoute B2B API Platform</CardTitle>
+                <CardDescription>
+                  Advanced route optimization API powered by Graph Neural Networks
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-start gap-3">
+                  <Code className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold mb-1">RESTful API</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Easy integration with comprehensive authentication and rate limiting
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Users className="h-5 w-5 text-primary mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold mb-1">Multi-Tier Billing</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Starter, Professional, and Enterprise tiers with pay-as-you-go pricing
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <BarChart3 className="h-5 w-5 text-accent mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold mb-1">GNN-Enhanced Optimization</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Superior route optimization using Graph Neural Networks
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="api-management">
+            <APIManagement />
+          </TabsContent>
+
+          <TabsContent value="route-planning" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Route Planning Interface</CardTitle>
+                <CardDescription>
+                  Interactive route planning and optimization (Coming Soon)
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center py-12">
+                <Route className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Route Planning Coming Soon</h3>
+                <p className="text-muted-foreground mb-4">
+                  Interactive map interface with route optimization will be available in the next update.
                 </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <BarChart3 className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <h3 className="font-semibold mb-1">Performance Analytics</h3>
                 <p className="text-sm text-muted-foreground">
-                  Track and optimize your routing efficiency
+                  For now, use the API Management tab to test the route optimization API endpoints.
                 </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Navigation, MapPin } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Navigation, MapPin, Mail, CheckCircle, ArrowLeft, Home } from 'lucide-react';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,9 +16,41 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showEmailVerification, setShowEmailVerification] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const resendVerificationEmail = async () => {
+    if (!userEmail) return;
+    
+    setLoading(true);
+    try {
+      // Note: Supabase doesn't have a direct resend method, so we'll use signUp again
+      const { error } = await signUp(userEmail, 'temp-password', 'Resend Verification');
+      if (error && !error.message.includes('already registered')) {
+        toast({
+          variant: 'destructive',
+          title: 'Failed to resend email',
+          description: error.message,
+        });
+      } else {
+        toast({
+          title: 'Verification email sent',
+          description: 'Please check your email for the verification link.',
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to resend verification email.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -33,10 +66,21 @@ const Auth = () => {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
+          let errorMessage = error.message;
+          let errorTitle = 'Login failed';
+          
+          // Provide more helpful error messages
+          if (error.message.includes('Email not confirmed')) {
+            errorTitle = 'Email not verified';
+            errorMessage = 'Please check your email and click the verification link before signing in.';
+          } else if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+          }
+          
           toast({
             variant: 'destructive',
-            title: 'Login failed',
-            description: error.message,
+            title: errorTitle,
+            description: errorMessage,
           });
         } else {
           toast({
@@ -55,10 +99,18 @@ const Auth = () => {
           });
         } else {
           toast({
-            title: 'Account created!',
-            description: 'Welcome to SwiftRoute.',
+            title: 'Account created successfully!',
+            description: 'Please check your email and click the verification link to activate your account.',
           });
-          navigate('/dashboard');
+          // Show email verification message
+          setUserEmail(email);
+          setShowEmailVerification(true);
+          // Clear the form
+          setEmail('');
+          setPassword('');
+          setFullName('');
+          // Switch to login tab
+          setIsLogin(true);
         }
       }
     } catch (error) {
@@ -76,6 +128,25 @@ const Auth = () => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
+          {/* Back Navigation */}
+          <div className="flex justify-start mb-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                // Navigate to dashboard if user is logged in, otherwise go to home
+                if (user) {
+                  navigate('/dashboard');
+                } else {
+                  navigate('/');
+                }
+              }}
+              className="text-muted-foreground hover:text-primary"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {user ? 'Back to Dashboard' : 'Back to Home'}
+            </Button>
+          </div>
           <div className="flex items-center justify-center gap-2 mb-2">
             <Navigation className="h-8 w-8 text-primary" />
             <h1 className="text-3xl font-bold">SwiftRoute</h1>
@@ -90,6 +161,32 @@ const Auth = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {showEmailVerification && (
+            <Alert className="mb-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                <strong>Account created successfully!</strong>
+                <br />
+                We've sent a verification email to <strong>{userEmail}</strong>
+                <br />
+                Please check your inbox and click the verification link to activate your account.
+                <br />
+                <div className="flex items-center justify-between mt-3">
+                  <span className="text-sm text-green-600">
+                    Don't see the email? Check your spam folder.
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowEmailVerification(false)}
+                    className="text-green-700 border-green-300 hover:bg-green-100"
+                  >
+                    Dismiss
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           <Tabs value={isLogin ? 'login' : 'signup'} onValueChange={(v) => setIsLogin(v === 'login')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -170,7 +267,7 @@ const Auth = () => {
         <CardFooter className="flex justify-center">
           <p className="text-sm text-muted-foreground flex items-center gap-1">
             <MapPin className="h-4 w-4" />
-            Intelligent routing powered by SwiftRoute
+            Professional routing solutions for businesses
           </p>
         </CardFooter>
       </Card>

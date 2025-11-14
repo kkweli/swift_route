@@ -1,16 +1,20 @@
 # SwiftRoute System Architecture
 
 ## Overview
-SwiftRoute is a multi-use logistics route optimization platform powered by Graph Neural Networks (GNN). The system provides B2B API services for sustainable, efficient route planning across various industries including e-commerce, field services, emergency response, public transit, waste management, and supply chain logistics.
+SwiftRoute is a B2B API platform that provides GNN-enhanced route optimization services on a pay-as-you-go basis. The system offers a RESTful API for external applications to integrate advanced route optimization, along with a comprehensive management dashboard for API clients to manage accounts, monitor usage, handle billing, and test the service. The platform serves multiple industries including e-commerce, field services, emergency response, public transit, waste management, and supply chain logistics.
 
 ## Architecture Diagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         CLIENT LAYER                             │
+│                    EXTERNAL API CLIENTS                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   Browser    │  │  Mobile App  │  │  Third-Party │          │
-│  │  (React UI)  │  │   (Future)   │  │  API Clients │          │
+│  │  E-commerce  │  │ Field Service│  │  Emergency   │          │
+│  │     Apps     │  │     Apps     │  │   Response   │          │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ Fleet Mgmt   │  │ Waste Mgmt   │  │ Public       │          │
+│  │   Systems    │  │   Systems    │  │ Transit      │          │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
 └─────────┼──────────────────┼──────────────────┼─────────────────┘
           │                  │                  │
@@ -19,24 +23,22 @@ SwiftRoute is a multi-use logistics route optimization platform powered by Graph
           ┌──────────────────┴──────────────────┐
           │                                     │
 ┌─────────▼─────────────────────────────────────▼─────────────────┐
-│                    FRONTEND LAYER (Vercel)                       │
+│                 SWIFTROUTE API PLATFORM                          │
 │                                                                  │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │            Next.js 14 Application (App Router)             │ │
+│  │              API Gateway & Authentication                   │ │
 │  │                                                            │ │
-│  │  Pages:           Components:          Hooks:            │ │
-│  │  - Landing (/)    - MapView            - useAuth         │ │
-│  │  - Auth (/auth)   - RouteForm          - useRoute        │ │
-│  │  - Dashboard      - RouteResults       Optimization      │ │
-│  │                   - Navigation                            │ │
+│  │  - API Key Validation    - Rate Limiting                  │ │
+│  │  - Usage Tracking        - Request/Response Logging       │ │
+│  │  - CORS & Security       - Billing Integration            │ │
 │  └────────────────────────────┬───────────────────────────────┘ │
 │                               │                                  │
 │  ┌────────────────────────────▼───────────────────────────────┐ │
-│  │              Next.js API Routes (/api/v1/*)                │ │
+│  │            Management Dashboard (Next.js)                  │ │
 │  │                                                            │ │
-│  │  - /auth       → Supabase Auth Wrapper                    │ │
-│  │  - /routes     → Saved Routes CRUD                        │ │
-│  │  - /optimize   → Proxy to Python Service                  │ │
+│  │  - Account Management    - Usage Analytics                │ │
+│  │  - API Key Management    - Billing Dashboard              │ │
+│  │  - Interactive Testing   - Documentation                  │ │
 │  └────────────────────────────┬───────────────────────────────┘ │
 └─────────────────────────────────┼─────────────────────────────────┘
                                   │
@@ -433,8 +435,8 @@ interface SavedRoute {
 
 **Frontend (.env.local)**:
 ```
-NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=xxx
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_ANON_KEY=xxx
 NEXT_PUBLIC_API_URL=https://swiftroute.vercel.app/api/v1
 ```
 
