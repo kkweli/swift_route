@@ -11,25 +11,33 @@ from typing import Optional, List, Dict, Any, Tuple
 import time
 import uuid
 import os
+import sys
 import asyncio
 from datetime import datetime
+from pathlib import Path
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
 
+# Add lib directory to Python path for Vercel compatibility
+current_dir = Path(__file__).parent
+lib_path = current_dir / 'lib'
+if str(lib_path) not in sys.path:
+    sys.path.insert(0, str(lib_path))
+
 # Import our modules
-from .lib.models import (
+from models import (
     RouteOptimizationRequest, 
     OptimizedRoute, 
     APIError, 
     HealthCheckResponse
 )
-from .lib.auth import validate_api_key, record_usage
-from .lib.optimizer import RouteOptimizer
-from .lib.database import DatabaseManager
-from .lib.rate_limiter import RateLimiter, RateLimitResult
-from .lib.trial_manager import (
+from auth import validate_api_key, record_usage
+from optimizer import RouteOptimizer
+from database import DatabaseManager
+from rate_limiter import RateLimiter, RateLimitResult
+from trial_manager import (
     create_trial_subscription,
     regenerate_trial_key,
     upgrade_from_trial,
