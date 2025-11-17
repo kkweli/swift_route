@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Minus, MapPin, Navigation, Loader2 } from 'lucide-react';
+import { Plus, Minus, MapPin, Loader2 } from 'lucide-react';
 import { LatLng } from './InteractiveMap';
 
 export interface OptimizationParameters {
