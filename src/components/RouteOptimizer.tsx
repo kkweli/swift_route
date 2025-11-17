@@ -57,15 +57,15 @@ export function RouteOptimizer() {
   });
 
   // API key state
+  // Note: Dashboard users don't need API keys - they use their session token
+  // API keys are only needed for external B2B API integrations
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [availableKeys, setAvailableKeys] = useState<Array<{id: string, name: string, key_prefix: string, full_key?: string}>>([]);
-  const [selectedKeyId, setSelectedKeyId] = useState<string | null>(null);
   const [isCreatingTrial, setIsCreatingTrial] = useState(false);
 
-  // Fetch subscription data
+  // Fetch subscription data and set up API key from auth token
   useEffect(() => {
     fetchSubscription();
-    fetchAPIKey();
+    setupAPIKey();
   }, [user]);
 
   const fetchSubscription = async () => {
@@ -96,49 +96,45 @@ export function RouteOptimizer() {
     }
   };
 
-  const fetchAPIKey = async () => {
+  const setupAPIKey = async () => {
     if (!user) return;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
+      // For dashboard users, check if they have a trial subscription
+      // If trial and no API key exists, create one automatically
       const response = await fetch('/api/v1/keys', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
-        if (data.data && data.data.length > 0) {
-          const activeKeys = data.data.filter((k: any) => k.status === 'active');
-          setAvailableKeys(activeKeys.map((k: any) => ({
-            id: k.id,
-            name: k.name,
-            key_prefix: k.key_prefix,
-            full_key: k.key // This will only be available for newly created keys
-          })));
-          
-          // Auto-select first key if none selected
-          if (activeKeys.length > 0 && !selectedKeyId) {
-            setSelectedKeyId(activeKeys[0].id);
-            // Note: We can't get the full key from the list, user needs to store it
-          }
+        const activeKeys = data.data?.filter((k: any) => k.status === 'active') || [];
+        
+        if (activeKeys.length > 0) {
+          // User has API keys - for dashboard use, we'll use their session token
+          // The backend will recognize authenticated users
+          setApiKey(session.access_token);
+        } else if (subscription.tier === 'trial') {
+          // Trial user with no keys - create trial key
+          await createTrialKey();
         } else {
-          // No keys found - only create trial if user doesn't have a paid subscription
-          // For paid users, they need to create a key manually from the API Keys tab
-          if (subscription.tier === 'trial') {
-            await createTrialKey();
-          } else {
-            toast({
-              title: 'No API Keys Found',
-              description: 'Please create an API key in the API Keys tab to use the route optimizer',
-              variant: 'destructive',
-            });
-          }
+          // Paid user with no keys - use session token
+          setApiKey(session.access_token);
         }
+      } else {
+        // If keys endpoint fails, still allow dashboard use with session token
+        setApiKey(session.access_token);
       }
     } catch (error) {
-      console.error('Error fetching API key:', error);
+      console.error('Error setting up API key:', error);
+      // Fallback: use session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setApiKey(session.access_token);
+      }
     }
   };
 
@@ -159,16 +155,7 @@ export function RouteOptimizer() {
       if (response.ok) {
         const data = await response.json();
         if (data.data && data.data.api_key) {
-          const trialKey = {
-            id: data.data.key_id || 'trial',
-            name: 'Trial API Key',
-            key_prefix: data.data.api_key.substring(0, 15) + '...',
-            full_key: data.data.api_key
-          };
-          
           setApiKey(data.data.api_key);
-          setAvailableKeys([trialKey]);
-          setSelectedKeyId(trialKey.id);
           
           setSubscription({
             tier: 'trial',
@@ -182,32 +169,26 @@ export function RouteOptimizer() {
             description: `You have ${data.data.requests_limit} requests for 14 days`,
           });
         }
+      } else {
+        // If trial creation fails, use session token as fallback
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          setApiKey(session.access_token);
+        }
       }
     } catch (error) {
       console.error('Error creating trial key:', error);
+      // Fallback to session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setApiKey(session.access_token);
+      }
       toast({
-        title: 'Failed to create trial',
-        description: 'Please try again or contact support',
-        variant: 'destructive',
+        title: 'Using Dashboard Access',
+        description: 'You can optimize routes using your dashboard login',
       });
     } finally {
       setIsCreatingTrial(false);
-    }
-  };
-
-  // Handle API key selection
-  const handleKeySelection = (keyId: string) => {
-    setSelectedKeyId(keyId);
-    const selectedKey = availableKeys.find(k => k.id === keyId);
-    if (selectedKey?.full_key) {
-      setApiKey(selectedKey.full_key);
-    } else {
-      // Key not available, user needs to re-enter it
-      toast({
-        title: 'API Key Required',
-        description: 'Please enter the full API key for this selection',
-        variant: 'destructive'
-      });
     }
   };
 
@@ -276,20 +257,22 @@ export function RouteOptimizer() {
     }
 
     if (!apiKey) {
-      if (subscription.tier === 'trial') {
+      // Try to set up API key automatically
+      await setupAPIKey();
+      
+      // Check again after setup
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
         toast({
-          title: 'No API Key',
-          description: 'Creating trial subscription...',
-        });
-        await createTrialKey();
-      } else {
-        toast({
-          title: 'No API Key',
-          description: 'Please create an API key in the API Keys tab or enter your existing key',
+          title: 'Authentication Required',
+          description: 'Please log in to use the route optimizer',
           variant: 'destructive',
         });
+        return;
       }
-      return;
+      
+      // Use session token as fallback
+      setApiKey(session.access_token);
     }
 
     if (subscription.requests_remaining <= 0) {
