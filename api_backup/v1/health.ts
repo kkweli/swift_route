@@ -3,7 +3,7 @@
  * Simple endpoint to test API authentication and system status
  */
 
-import { authenticateAPIRequest, createAPIErrorResponse, createAPISuccessResponse, recordAPIUsage } from '../auth/middleware';
+import { authenticateAPIRequest, createAPIErrorResponse, createAPISuccessResponse, recordAPIUsage } from '../lib/middleware.js';
 
 export default async function handler(request: Request): Promise<Response> {
   const startTime = Date.now();

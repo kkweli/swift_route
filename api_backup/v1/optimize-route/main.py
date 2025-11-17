@@ -19,17 +19,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Import our modules
-from .lib.models import (
+from lib.models import (
     RouteOptimizationRequest, 
     OptimizedRoute, 
     APIError, 
     HealthCheckResponse
 )
-from .lib.auth import validate_api_key, record_usage
-from .lib.optimizer import RouteOptimizer
-from .lib.database import DatabaseManager
-from .lib.rate_limiter import RateLimiter, RateLimitResult
-from .lib.trial_manager import (
+from lib.auth import validate_api_key, record_usage
+from lib.optimizer import RouteOptimizer
+from lib.database import DatabaseManager
+from lib.rate_limiter import RateLimiter, RateLimitResult
+from lib.trial_manager import (
     create_trial_subscription,
     regenerate_trial_key,
     upgrade_from_trial,

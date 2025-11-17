@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Leaflet CSS */
+@import 'leaflet/dist/leaflet.css';
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
@@ -102,4 +105,40 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom Leaflet Map Styles */
+.leaflet-container {
+  border-radius: 0.5rem;
+  font-family: inherit;
+}
+
+.leaflet-popup-content {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 0.5rem;
+}
+
+.leaflet-control-zoom {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.leaflet-bar {
+  border-radius: 0.5rem;
+}
+
+/* Map marker custom styles */
+.map-marker-origin {
+  filter: hue-rotate(120deg);
+}
+
+.map-marker-destination {
+  filter: hue-rotate(0deg);
+}
+
+.map-marker-waypoint {
+  filter: hue-rotate(240deg);
 }

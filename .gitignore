@@ -42,6 +42,9 @@ dist-ssr
 test_*.py
 *_test.py
 
+# Scripts directory
+scripts/
+
 # Large data files
 *.xml
 *.osm
@@ -63,6 +66,27 @@ MVP_STATUS.md
 .qodo
 .vscode
 .kiro
-docs/ARCHITECTURE.md
+docs/*
 supabase/migrations/*.sql
+ api_backup/*
 
+deploy.ps1
+deploy.sh
+.env.production.example
+DEPLOY_NOW.md
+DEPLOYMENT_QUICK_REFERENCE.md
+DEPLOYMENT_SUMMARY.md
+VERCEL_CONFIG_FIX.md
+VERCEL_DEPLOYMENT.md
+docs/DEPLOYMENT_FLOW.md
+setup-vercel-env.ps1
+test-deployment.ps1
+FIX_CORS_ISSUE.md
+DEPLOYMENT_SUCCESS.md
+APPLY_DATABASE_MIGRATION.md
+apply-migration.ps1
+DASHBOARD_COMPLETION_PROGRESS.md
+add-stripe-env.ps1
+STRIPE_SETUP.md
+STRIPE_IMPLEMENTATION_GUIDE.md
+.gitignore

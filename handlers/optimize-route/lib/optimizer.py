@@ -10,8 +10,8 @@ import math
 import time
 import uuid
 from typing import Dict, List, Any, Optional, Tuple
-from models import RouteOptimizationRequest, OptimizedRoute, Coordinates, NavigationWaypoint, EfficiencyMetrics, AlternativeRoute
-from database import DatabaseManager
+from .models import RouteOptimizationRequest, OptimizedRoute, Coordinates, NavigationWaypoint, EfficiencyMetrics, AlternativeRoute
+from .database import DatabaseManager
 
 class RouteOptimizer:
     """Route optimization engine with multiple algorithm support"""

@@ -1,11 +1,16 @@
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Navigation, MapPin, Route, Users, BarChart3, LogOut, Settings, Code } from 'lucide-react';
-import { APIManagement } from '@/components/APIManagement';
+import { Navigation, Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users } from 'lucide-react';
+import { APIKeyManagement } from '@/components/APIKeyManagement';
+import { UsageAnalytics } from '@/components/UsageAnalytics';
+import { BillingDashboard } from '@/components/BillingDashboard';
+import { ProfileManagement } from '@/components/ProfileManagement';
+import { RouteOptimizer } from '@/components/RouteOptimizer';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
@@ -62,46 +67,66 @@ const Dashboard = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="api-management">API Management</TabsTrigger>
-            <TabsTrigger value="route-planning">Route Planning</TabsTrigger>
+            <TabsTrigger value="route-optimizer">Route Optimizer</TabsTrigger>
+            <TabsTrigger value="api-keys">API Keys</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6">
             {/* Feature Cards */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card className="hover:shadow-lg transition-shadow">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                const tab = document.querySelector('[value="api-keys"]') as HTMLElement;
+                tab?.click();
+              }}>
                 <CardHeader>
-                  <Code className="h-8 w-8 text-primary mb-2" />
-                  <CardTitle>API Management</CardTitle>
+                  <Key className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>API Keys</CardTitle>
                   <CardDescription>
-                    Test and manage your SwiftRoute API integration
+                    Generate and manage your API keys
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button className="w-full" onClick={() => document.querySelector('[value="api-management"]')?.click()}>
-                    Manage API
+                  <Button className="w-full" onClick={(e) => {
+                    e.stopPropagation();
+                    const tab = document.querySelector('[value="api-keys"]') as HTMLElement;
+                    tab?.click();
+                  }}>
+                    Manage API Keys
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                const tab = document.querySelector('[value="route-optimizer"]') as HTMLElement;
+                tab?.click();
+              }}>
                 <CardHeader>
-                  <Route className="h-8 w-8 text-primary mb-2" />
+                  <MapPin className="h-8 w-8 text-primary mb-2" />
                   <CardTitle>Route Optimization</CardTitle>
                   <CardDescription>
                     Test route optimization with GNN algorithms
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full" disabled>
-                    Coming Soon
+                  <Button className="w-full" onClick={(e) => {
+                    e.stopPropagation();
+                    const tab = document.querySelector('[value="route-optimizer"]') as HTMLElement;
+                    tab?.click();
+                  }}>
+                    Try Route Optimizer
                   </Button>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                const tab = document.querySelector('[value="analytics"]') as HTMLElement;
+                tab?.click();
+              }}>
                 <CardHeader>
                   <BarChart3 className="h-8 w-8 text-accent mb-2" />
                   <CardTitle>Usage Analytics</CardTitle>
@@ -110,8 +135,34 @@ const Dashboard = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Button variant="outline" className="w-full" onClick={() => document.querySelector('[value="api-management"]')?.click()}>
+                  <Button variant="outline" className="w-full" onClick={(e) => {
+                    e.stopPropagation();
+                    const tab = document.querySelector('[value="analytics"]') as HTMLElement;
+                    tab?.click();
+                  }}>
                     View Analytics
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => {
+                const tab = document.querySelector('[value="billing"]') as HTMLElement;
+                tab?.click();
+              }}>
+                <CardHeader>
+                  <CreditCard className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle>Billing</CardTitle>
+                  <CardDescription>
+                    Manage subscription and payments
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button variant="outline" className="w-full" onClick={(e) => {
+                    e.stopPropagation();
+                    const tab = document.querySelector('[value="billing"]') as HTMLElement;
+                    tab?.click();
+                  }}>
+                    View Billing
                   </Button>
                 </CardContent>
               </Card>
@@ -157,8 +208,26 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="api-management">
-            <APIManagement />
+          <TabsContent value="api-keys">
+            <APIKeyManagement />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <UsageAnalytics />
+          </TabsContent>
+
+          <TabsContent value="billing">
+            <BillingDashboard />
+          </TabsContent>
+
+          <TabsContent value="profile">
+            <ProfileManagement />
+          </TabsContent>
+
+          <TabsContent value="route-optimizer" className="space-y-6">
+            <ErrorBoundary>
+              <RouteOptimizer />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="route-planning" className="space-y-6">
@@ -170,7 +239,7 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="text-center py-12">
-                <Route className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <MapPin className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-lg font-semibold mb-2">Route Planning Coming Soon</h3>
                 <p className="text-muted-foreground mb-4">
                   Interactive map interface with route optimization will be available in the next update.
