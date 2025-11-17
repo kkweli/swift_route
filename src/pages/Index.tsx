@@ -1,8 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowRight, Map, Brain, TrendingDown, Leaf, Target, Building2, Zap, Code, BarChart3 } from "lucide-react";
+import { ArrowRight, Brain, TrendingDown, Leaf, Target, Building2, Zap, Code, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
+import { Logo } from "@/components/Logo";
 
 const Index = () => {
   return (
@@ -10,10 +11,7 @@ const Index = () => {
       {/* Navigation */}
       <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Map className="h-6 w-6 text-primary" />
-            <span className="text-xl font-bold">SwiftRoute</span>
-          </div>
+          <Logo size="md" />
           <div className="flex gap-4">
             <Button variant="ghost" asChild>
               <Link to="/pricing">Pricing</Link>

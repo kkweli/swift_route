@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Navigation, MapPin, Mail, CheckCircle, ArrowLeft, Home } from 'lucide-react';
+import { MapPin, Mail, CheckCircle, ArrowLeft, Home } from 'lucide-react';
+import { Logo } from '@/components/Logo';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -147,9 +148,8 @@ const Auth = () => {
               {user ? 'Back to Dashboard' : 'Back to Home'}
             </Button>
           </div>
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Navigation className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">SwiftRoute</h1>
+          <div className="flex items-center justify-center mb-2">
+            <Logo size="lg" />
           </div>
           <CardTitle className="text-2xl">
             {isLogin ? 'Welcome Back' : 'Get Started'}

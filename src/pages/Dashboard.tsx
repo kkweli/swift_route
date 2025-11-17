@@ -4,13 +4,14 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Navigation, Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users } from 'lucide-react';
+import { Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users } from 'lucide-react';
 import { APIKeyManagement } from '@/components/APIKeyManagement';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { BillingDashboard } from '@/components/BillingDashboard';
 import { ProfileManagement } from '@/components/ProfileManagement';
 import { RouteOptimizer } from '@/components/RouteOptimizer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { Logo } from '@/components/Logo';
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
@@ -46,10 +47,7 @@ const Dashboard = () => {
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Navigation className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">SwiftRoute</h1>
-          </div>
+          <Logo size="md" />
           <Button variant="ghost" onClick={handleSignOut}>
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
