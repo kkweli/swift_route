@@ -81,11 +81,14 @@ class handler(BaseHTTPRequestHandler):
             )
             
             # Initialize engine and optimize
+            print(f"Optimizing route from {origin} to {destination}")
+            print(f"Vehicle: {vehicle_type}, Optimization: {optimization}")
+            
             engine = RouteOptimizationEngine()
             result = engine.optimize(request)
             
             if not result:
-                raise Exception("No route found between origin and destination")
+                raise Exception("No route found between origin and destination. Check if road network data exists in database.")
             
             # Format response
             response_data = self._format_response(result)
@@ -98,18 +101,31 @@ class handler(BaseHTTPRequestHandler):
             
         except Exception as e:
             import traceback
+            
+            # Get detailed error info
+            error_details = {
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "traceback": traceback.format_exc()
+            }
+            
+            print(f"=== OPTIMIZATION ERROR ===")
+            print(f"Error: {e}")
+            print(f"Type: {type(e).__name__}")
+            print(f"Request data: {data if 'data' in locals() else 'N/A'}")
+            traceback.print_exc()
+            print("=" * 50)
+            
             error_response = {
                 "error": {
                     "code": "OPTIMIZATION_ERROR",
                     "message": "Route optimization failed",
-                    "details": str(e)
+                    "details": str(e),
+                    "debug_info": error_details if os.getenv('DEBUG') else None
                 },
                 "request_id": f"error_{int(datetime.utcnow().timestamp())}",
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             }
-            
-            print(f"Error: {e}")
-            traceback.print_exc()
             
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')

@@ -1,6 +1,8 @@
 # Lightweight Route Optimization for Vercel Serverless
-networkx>=3.2
-numpy>=1.24.0
-shapely>=2.0.0
-supabase>=2.0.0
+# Using OSRM for routing (no database needed)
+# Optimized for Vercel Hobby plan constraints:
+# - No heavy ML libraries (PyTorch, TensorFlow)
+# - Minimal dependencies for fast cold starts
+# - Uses external OSRM API instead of local graph processing
+requests>=2.31.0
 python-dotenv>=1.0.0
