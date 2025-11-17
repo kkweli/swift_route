@@ -80,7 +80,7 @@ export function RouteInputPanel({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <Navigation className="h-5 w-5" />
+            <MapPin className="h-5 w-5" />
             Route Optimizer
           </CardTitle>
         </div>

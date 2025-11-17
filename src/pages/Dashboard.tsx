@@ -27,7 +27,7 @@ const Dashboard = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center space-y-4">
-          <Navigation className="h-12 w-12 text-primary animate-pulse mx-auto" />
+          <Logo size="lg" className="animate-pulse mx-auto" />
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
