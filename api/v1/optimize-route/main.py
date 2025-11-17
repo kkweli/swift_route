@@ -3,27 +3,22 @@ Minimal Vercel Python Handler - No FastAPI
 """
 import json
 from datetime import datetime
+from http.server import BaseHTTPRequestHandler
+from urllib.parse import parse_qs
 
-def handler(request):
+class handler(BaseHTTPRequestHandler):
     """Vercel serverless function handler"""
     
-    # Handle CORS preflight
-    if request.get('method') == 'OPTIONS':
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-                "Access-Control-Allow-Headers": "Content-Type, Authorization, X-API-Key"
-            },
-            "body": ""
-        }
+    def do_OPTIONS(self):
+        """Handle CORS preflight"""
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key')
+        self.end_headers()
     
-    # Get the path
-    path = request.get('path', '')
-    
-    # Health check
-    if 'health' in path or request.get('method') == 'GET':
+    def do_GET(self):
+        """Handle GET requests - health check"""
         response_data = {
             "data": {
                 "status": "healthy",
@@ -41,24 +36,19 @@ def handler(request):
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
         
-        return {
-            "statusCode": 200,
-            "headers": {
-                "Content-Type": "application/json",
-                "Access-Control-Allow-Origin": "*"
-            },
-            "body": json.dumps(response_data)
-        }
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps(response_data).encode())
     
-    # Optimize endpoint
-    if request.get('method') == 'POST':
+    def do_POST(self):
+        """Handle POST requests - route optimization"""
         try:
-            # Parse request body
-            body = request.get('body', '{}')
-            if isinstance(body, str):
-                data = json.loads(body)
-            else:
-                data = body
+            # Read request body
+            content_length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(content_length).decode('utf-8')
+            data = json.loads(body) if body else {}
             
             origin = data.get('origin', [0, 0])
             destination = data.get('destination', [0, 0])
@@ -113,14 +103,11 @@ def handler(request):
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             }
             
-            return {
-                "statusCode": 200,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps(response_data)
-            }
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(response_data).encode())
             
         except Exception as e:
             error_response = {
@@ -133,26 +120,8 @@ def handler(request):
                 "timestamp": datetime.utcnow().isoformat() + "Z"
             }
             
-            return {
-                "statusCode": 500,
-                "headers": {
-                    "Content-Type": "application/json",
-                    "Access-Control-Allow-Origin": "*"
-                },
-                "body": json.dumps(error_response)
-            }
-    
-    # Method not allowed
-    return {
-        "statusCode": 405,
-        "headers": {
-            "Content-Type": "application/json",
-            "Access-Control-Allow-Origin": "*"
-        },
-        "body": json.dumps({
-            "error": {
-                "code": "METHOD_NOT_ALLOWED",
-                "message": f"Method {request.get('method')} not allowed"
-            }
-        })
-    }
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps(error_response).encode())
