@@ -374,6 +374,72 @@ export default async function handler(req, res) {
       });
     }
 
+    // ==================== ROUTE OPTIMIZATION PROXY ====================
+    if (path.includes('/optimize-route') || path.includes('/optimize')) {
+      if (req.method !== 'POST') {
+        return res.status(405).json({
+          error: { code: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` }
+        });
+      }
+
+      try {
+        // Forward request to Python handler
+        const pythonEndpoint = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/v1/optimize-route`;
+        
+        const pythonResponse = await fetch(pythonEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(req.body)
+        });
+
+        const responseData = await pythonResponse.json();
+        const responseTime = Date.now() - startTime;
+        const success = pythonResponse.ok;
+
+        // Log usage to database
+        await supabase
+          .from('usage_logs')
+          .insert({
+            user_id: user.id,
+            endpoint: '/api/v1/optimize-route',
+            method: 'POST',
+            status_code: pythonResponse.status,
+            response_time_ms: responseTime,
+            success: success,
+            error_code: success ? null : responseData.error?.code
+          });
+
+        // Return the Python response
+        return res.status(pythonResponse.status).json(responseData);
+
+      } catch (error) {
+        console.error('Route optimization error:', error);
+        
+        // Log failed request
+        await supabase
+          .from('usage_logs')
+          .insert({
+            user_id: user.id,
+            endpoint: '/api/v1/optimize-route',
+            method: 'POST',
+            status_code: 500,
+            response_time_ms: Date.now() - startTime,
+            success: false,
+            error_code: 'PROXY_ERROR'
+          });
+
+        return res.status(500).json({
+          error: {
+            code: 'OPTIMIZATION_ERROR',
+            message: 'Failed to process route optimization',
+            details: error.message
+          }
+        });
+      }
+    }
+
     // ==================== NOT FOUND ====================
     return res.status(404).json({
       error: { code: 'NOT_FOUND', message: 'Endpoint not found' }
