@@ -156,7 +156,7 @@ export default async function handler(req, res) {
       if (error) throw error;
 
       const totalRequests = usageLogs?.length || 0;
-      const successfulRequests = usageLogs?.filter(log => log.success).length || 0;
+      const successfulRequests = usageLogs?.filter(log => log.status_code >= 200 && log.status_code < 300).length || 0;
       const failedRequests = totalRequests - successfulRequests;
 
       const { data: subscription } = await supabase
@@ -200,6 +200,37 @@ export default async function handler(req, res) {
           .select('*')
           .eq('user_id', user.id)
           .single();
+
+        // If no subscription exists, create a trial subscription
+        if (error && error.code === 'PGRST116') {
+          const { data: newSubscription, error: createError } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: user.id,
+              tier: 'trial',
+              requests_per_minute: 5,
+              monthly_requests_included: 100,
+              price_per_request: '0.00',
+              payment_status: 'trial',
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+
+          return res.status(200).json({
+            data: {
+              ...newSubscription,
+              requests_used: 0,
+              requests_remaining: 100,
+              overage_requests: 0,
+              overage_cost: '0.00',
+              estimated_total: '0.00'
+            }
+          });
+        }
 
         if (error) throw error;
 
@@ -407,7 +438,6 @@ export default async function handler(req, res) {
             method: 'POST',
             status_code: pythonResponse.status,
             response_time_ms: responseTime,
-            success: success,
             error_code: success ? null : responseData.error?.code
           });
 
@@ -426,7 +456,6 @@ export default async function handler(req, res) {
             method: 'POST',
             status_code: 500,
             response_time_ms: Date.now() - startTime,
-            success: false,
             error_code: 'PROXY_ERROR'
           });
 
