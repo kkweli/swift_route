@@ -1,1 +1,6 @@
-# No external dependencies needed for minimal handler
+# Lightweight Route Optimization for Vercel Serverless
+networkx>=3.2
+numpy>=1.24.0
+shapely>=2.0.0
+supabase>=2.0.0
+python-dotenv>=1.0.0
