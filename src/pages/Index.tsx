@@ -17,6 +17,9 @@ const Index = () => {
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button variant="ghost" asChild>
+              <a href="/docs/QUICK_START.md" target="_blank" rel="noopener noreferrer">Docs</a>
+            </Button>
+            <Button variant="ghost" asChild>
               <Link to="/auth">Sign In</Link>
             </Button>
             <Button asChild>
