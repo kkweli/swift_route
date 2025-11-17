@@ -78,14 +78,16 @@ class RouteOptimizationEngine:
             print(f"  Destination: {request.destination}")
             print(f"  Profile: {profile}")
             
-            # Get route from OSRM
+            # Get route from OSRM with vehicle-specific optimization
+            # Request multiple alternatives to find genuinely different routes
             osrm_response = self.osrm_client.get_route(
                 origin=request.origin,
                 destination=request.destination,
                 profile=profile,
-                alternatives=request.find_alternatives,
+                alternatives=True,  # Always get alternatives for comparison
                 steps=True,
-                geometries="geojson"
+                geometries="geojson",
+                continue_straight=False  # Allow more route variations
             )
             
             # Calculate processing time

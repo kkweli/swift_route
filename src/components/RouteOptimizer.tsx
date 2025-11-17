@@ -84,15 +84,41 @@ export function RouteOptimizer() {
 
       if (response.ok) {
         const data = await response.json();
+        
+        // Ensure data.data exists before accessing properties
+        if (data && data.data) {
+          setSubscription({
+            tier: data.data.tier || 'trial',
+            requests_remaining: data.data.requests_remaining ?? 100,
+            monthly_requests_included: data.data.monthly_requests_included || 100,
+            trial_end_date: data.data.trial_end_date,
+          });
+        } else {
+          console.error('Invalid subscription data format:', data);
+          // Set default trial subscription
+          setSubscription({
+            tier: 'trial',
+            requests_remaining: 100,
+            monthly_requests_included: 100,
+          });
+        }
+      } else {
+        console.error('Failed to fetch subscription:', response.status, response.statusText);
+        // Set default trial subscription on error
         setSubscription({
-          tier: data.data.tier || 'trial',
-          requests_remaining: data.data.requests_remaining || 100,
-          monthly_requests_included: data.data.monthly_requests_included || 100,
-          trial_end_date: data.data.trial_end_date,
+          tier: 'trial',
+          requests_remaining: 100,
+          monthly_requests_included: 100,
         });
       }
     } catch (error) {
       console.error('Error fetching subscription:', error);
+      // Set default trial subscription on exception
+      setSubscription({
+        tier: 'trial',
+        requests_remaining: 100,
+        monthly_requests_included: 100,
+      });
     }
   };
 
@@ -307,11 +333,14 @@ export function RouteOptimizer() {
       setOptimizedRoute(response.data.optimized_route);
       setSelectedRoute('optimized');
 
-      // Update subscription data
+      // Update subscription data - decrement requests_remaining locally
       setSubscription({
         ...subscription,
-        requests_remaining: response.usage.requests_remaining,
+        requests_remaining: Math.max(0, subscription.requests_remaining - 1),
       });
+      
+      // Refresh subscription data from server in background
+      fetchSubscription();
 
       toast({
         title: 'Route optimized!',

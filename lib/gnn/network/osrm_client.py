@@ -39,7 +39,8 @@ class OSRMClient:
         profile: str = "car",
         alternatives: bool = True,
         steps: bool = True,
-        geometries: str = "geojson"
+        geometries: str = "geojson",
+        continue_straight: bool = None
     ) -> Dict[str, Any]:
         """
         Get route from OSRM
@@ -72,11 +73,12 @@ class OSRMClient:
         url = f"{self.base_url}/route/v1/{profile}/{coords}"
         
         params = {
-            "alternatives": "true" if alternatives else "false",
+            "alternatives": "3" if alternatives else "false",  # Request up to 3 alternatives
             "steps": "true" if steps else "false",
             "geometries": geometries,
             "overview": "full",
-            "annotations": "true"
+            "annotations": "true",
+            "continue_straight": "default" if continue_straight is None else ("true" if continue_straight else "false")
         }
         
         try:

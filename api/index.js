@@ -69,19 +69,61 @@ export default async function handler(req, res) {
     }
 
     // ==================== AUTHENTICATION REQUIRED FOR ALL OTHER ENDPOINTS ====================
+    // Support both Bearer token (dashboard) and API key (B2B) authentication
     const authHeader = req.headers.authorization;
-    if (!authHeader) {
-      return res.status(401).json({
-        error: { code: 'UNAUTHORIZED', message: 'Authorization required' }
-      });
-    }
-
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const apiKeyHeader = req.headers['x-api-key'];
     
-    if (authError || !user) {
+    let user = null;
+    let apiKeyId = null;
+    
+    // Try Bearer token authentication first (dashboard users)
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+      
+      if (!authError && authUser) {
+        user = authUser;
+      }
+    }
+    
+    // Try API key authentication (B2B clients)
+    if (!user && apiKeyHeader) {
+      const keyHash = hashAPIKey(apiKeyHeader);
+      
+      const { data: apiKey, error: keyError } = await supabase
+        .from('api_keys')
+        .select('id, user_id, status')
+        .eq('key_hash', keyHash)
+        .eq('status', 'active')
+        .single();
+      
+      if (!keyError && apiKey) {
+        // Get user associated with API key
+        const { data: { user: keyUser }, error: userError } = await supabase.auth.admin.getUserById(apiKey.user_id);
+        
+        if (!userError && keyUser) {
+          user = keyUser;
+          apiKeyId = apiKey.id;
+          
+          // Update API key usage stats
+          await supabase
+            .from('api_keys')
+            .update({
+              last_used: new Date().toISOString(),
+              request_count: supabase.rpc('increment', { row_id: apiKey.id })
+            })
+            .eq('id', apiKey.id);
+        }
+      }
+    }
+    
+    // If neither authentication method worked, return 401
+    if (!user) {
       return res.status(401).json({
-        error: { code: 'UNAUTHORIZED', message: 'Invalid token' }
+        error: { 
+          code: 'UNAUTHORIZED', 
+          message: 'Authorization required. Provide either Bearer token or X-API-Key header.' 
+        }
       });
     }
 
@@ -429,11 +471,12 @@ export default async function handler(req, res) {
         const responseTime = Date.now() - startTime;
         const success = pythonResponse.ok;
 
-        // Log usage to database
+        // Log usage to database (includes api_key_id if using API key auth)
         await supabase
           .from('usage_logs')
           .insert({
             user_id: user.id,
+            api_key_id: apiKeyId, // null for dashboard users, set for API key users
             endpoint: '/api/v1/optimize-route',
             method: 'POST',
             status_code: pythonResponse.status,
@@ -452,6 +495,7 @@ export default async function handler(req, res) {
           .from('usage_logs')
           .insert({
             user_id: user.id,
+            api_key_id: apiKeyId, // null for dashboard users, set for API key users
             endpoint: '/api/v1/optimize-route',
             method: 'POST',
             status_code: 500,

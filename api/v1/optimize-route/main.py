@@ -160,7 +160,8 @@ class handler(BaseHTTPRequestHandler):
                     "estimated_time": baseline.time_minutes if baseline else 0,
                     "cost": baseline.cost_usd if baseline else 0,
                     "co2_emissions": baseline.emissions_kg if baseline else 0,
-                    "algorithm_used": baseline.algorithm_used if baseline else "none"
+                    "algorithm_used": baseline.algorithm_used if baseline else "none",
+                    "processing_time": baseline.processing_time_ms if baseline else 0
                 },
                 "optimized_route": {
                     "route_id": "optimized",
@@ -170,7 +171,8 @@ class handler(BaseHTTPRequestHandler):
                     "cost": primary.cost_usd,
                     "co2_emissions": primary.emissions_kg,
                     "algorithm_used": primary.algorithm_used,
-                    "confidence_score": primary.confidence_score
+                    "confidence_score": primary.confidence_score,
+                    "processing_time": primary.processing_time_ms
                 },
                 "alternative_routes": [
                     {
