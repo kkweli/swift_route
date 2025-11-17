@@ -8,8 +8,9 @@ from http.server import BaseHTTPRequestHandler
 import sys
 import os
 
-# Add current directory to path for imports
-sys.path.insert(0, os.path.dirname(__file__))
+# Add lib directory to path for imports
+lib_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib')
+sys.path.insert(0, lib_path)
 
 from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
 from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
