@@ -1,4 +1,15 @@
 {
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 10
+    },
+    "api/v1/optimize-route/main.py": {
+      "runtime": "python3.9",
+      "memory": 1024,
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
       "source": "/api/v1/optimize-route/(.*)",
