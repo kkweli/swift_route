@@ -548,6 +548,59 @@ export default async function handler(req, res) {
         });
       }
 
+      // POST /keys/regenerate - Regenerate an existing API key (returns new full key once)
+      if (path.includes('/keys/regenerate') && req.method === 'POST') {
+        const { id } = req.body || {};
+
+        if (!id) {
+          return res.status(400).json({ error: { code: 'MISSING_ID', message: 'API key id is required' } });
+        }
+
+        // Ensure the key belongs to the requesting user
+        const { data: existingKey, error: getError } = await supabase
+          .from('api_keys')
+          .select('id, user_id, status')
+          .eq('id', id)
+          .single();
+
+        if (getError || !existingKey) {
+          return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'API key not found' } });
+        }
+
+        if (existingKey.user_id !== user.id) {
+          return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You do not own this API key' } });
+        }
+
+        if (existingKey.status !== 'active') {
+          return res.status(400).json({ error: { code: 'INVALID_STATUS', message: 'Only active keys can be regenerated' } });
+        }
+
+        // Create a new key, update DB with its hash and prefix, and return the full key once
+        const newApiKey = generateAPIKey();
+        const newKeyHash = hashAPIKey(newApiKey);
+        const newKeyPrefix = newApiKey.substring(0, 15) + '...';
+
+        const { data: updatedKey, error: updateError } = await supabase
+          .from('api_keys')
+          .update({ key_hash: newKeyHash, key_prefix: newKeyPrefix, updated_at: new Date().toISOString() })
+          .eq('id', id)
+          .select()
+          .single();
+
+        if (updateError) {
+          return res.status(500).json({ error: { code: 'UPDATE_FAILED', message: updateError.message } });
+        }
+
+        return res.status(200).json({
+          data: {
+            id: updatedKey.id,
+            key: newApiKey,
+            key_prefix: newKeyPrefix
+          },
+          message: 'API key regenerated. Save this key now - it will not be shown again.'
+        });
+      }
+
       return res.status(405).json({
         error: { code: 'METHOD_NOT_ALLOWED', message: `Method ${req.method} not allowed` }
       });
