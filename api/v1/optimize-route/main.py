@@ -15,6 +15,7 @@ sys.path.insert(0, lib_path)
 
 from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
 from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
+from gnn.llm import summarize_candidates
 
 
 class handler(BaseHTTPRequestHandler):
@@ -90,6 +91,8 @@ class handler(BaseHTTPRequestHandler):
             destination = tuple(data.get('destination', [-1.2864, 36.8172]))
             vehicle_type = data.get('vehicle_type', 'car')
             optimization = data.get('optimize_for', 'time')
+            factor = float(data.get('factor', 1.0)) if data.get('factor') is not None else 1.0
+            include_explanation = bool(data.get('include_explanation', False))
             
             # Create vehicle profile
             vehicle_profile = self._create_vehicle_profile(vehicle_type, data)
@@ -101,7 +104,9 @@ class handler(BaseHTTPRequestHandler):
                 vehicle_profile=vehicle_profile,
                 optimization_criteria=optimization,
                 find_alternatives=data.get('find_alternatives', True),
-                num_alternatives=data.get('num_alternatives', 2)
+                num_alternatives=int(data.get('num_alternatives', 2)),
+                factor=factor,
+                include_explanation=include_explanation
             )
             
             # Initialize engine and optimize
@@ -114,8 +119,38 @@ class handler(BaseHTTPRequestHandler):
             if not result:
                 raise Exception("No route found between origin and destination. Check if road network data exists in database.")
             
-            # Format response
+            # Optionally produce an LLM explanation (safe summarizer if LLM not configured)
+            explanation = None
+            try:
+                if request.include_explanation:
+                    # Build a lightweight candidate summary input for the summarizer
+                    candidates_input = []
+                    primary = result.primary_route
+                    # include primary and alternatives as simple dicts
+                    candidates_input.append({
+                        'distance': primary.distance_km,
+                        'estimated_time': primary.time_minutes,
+                        'cost': primary.cost_usd,
+                        'co2_emissions': primary.emissions_kg,
+                        'algorithm_used': primary.algorithm_used
+                    })
+                    for alt in result.alternative_routes:
+                        candidates_input.append({
+                            'distance': alt.distance_km,
+                            'estimated_time': alt.time_minutes,
+                            'cost': alt.cost_usd,
+                            'co2_emissions': alt.emissions_kg,
+                            'algorithm_used': alt.algorithm_used
+                        })
+
+                    explanation = summarize_candidates(candidates_input)
+            except Exception as e:
+                logging.warning(f"LLM summarization failed: {e}")
+
+            # Format response (include explanation if present)
             response_data = self._format_response(result)
+            if explanation:
+                response_data['metadata']['explanation'] = explanation
 
             # Instrumentation: log optimization request and result to Supabase REST (non-blocking)
             try:
@@ -230,7 +265,61 @@ class handler(BaseHTTPRequestHandler):
         primary = result.primary_route
         baseline = result.baseline_route
         
-        return {
+        resp = {
+            "data": {
+                "baseline_route": {
+                    "route_id": "baseline",
+                    "coordinates": [{"lat": lat, "lng": lng} for lat, lng in baseline.coordinates] if baseline else [],
+                    "distance": baseline.distance_km if baseline else 0,
+                    "estimated_time": baseline.time_minutes if baseline else 0,
+                    "cost": baseline.cost_usd if baseline else 0,
+                    "co2_emissions": baseline.emissions_kg if baseline else 0,
+                    "algorithm_used": baseline.algorithm_used if baseline else "none",
+                    "processing_time": baseline.processing_time_ms if baseline else 0
+                },
+                "optimized_route": {
+                    "route_id": "optimized",
+                    "coordinates": [{"lat": lat, "lng": lng} for lat, lng in primary.coordinates],
+                    "distance": primary.distance_km,
+                    "estimated_time": primary.time_minutes,
+                    "cost": primary.cost_usd,
+                    "co2_emissions": primary.emissions_kg,
+                    "algorithm_used": primary.algorithm_used,
+                    "confidence_score": primary.confidence_score,
+                    "processing_time": primary.processing_time_ms
+                },
+                "alternative_routes": [
+                    {
+                        "route_id": f"alt_{i}",
+                        "coordinates": [{"lat": lat, "lng": lng} for lat, lng in alt.coordinates],
+                        "distance": alt.distance_km,
+                        "estimated_time": alt.time_minutes,
+                        "cost": alt.cost_usd,
+                        "co2_emissions": alt.emissions_kg,
+                        "algorithm_used": alt.algorithm_used
+                    }
+                    for i, alt in enumerate(result.alternative_routes)
+                ],
+                "improvements": {
+                    "distance_saved": result.improvements['distance_saved_km'],
+                    "time_saved": result.improvements['time_saved_minutes'],
+                    "cost_saved": result.improvements['cost_saved_usd'],
+                    "co2_saved": result.improvements['emissions_saved_kg']
+                },
+                "traffic_info": result.traffic_info if hasattr(result, 'traffic_info') else {},
+                "amenities": result.amenities if hasattr(result, 'amenities') else []
+            },
+            "metadata": {
+                "algorithm_used": primary.algorithm_used,
+                "processing_time": result.metadata['total_processing_time_ms'],
+                "request_id": f"req_{int(datetime.utcnow().timestamp())}",
+                "nodes_in_graph": result.metadata['nodes_in_graph'],
+                "edges_in_graph": result.metadata['edges_in_graph']
+            },
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+        return resp
             "data": {
                 "baseline_route": {
                     "route_id": "baseline",
