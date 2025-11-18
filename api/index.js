@@ -128,6 +128,14 @@ export default async function handler(req, res) {
     const authHeader = req.headers.authorization;
     const apiKeyHeader = req.headers['x-api-key'];
     
+    // DEBUG: Log headers for troubleshooting
+    console.log('=== AUTH DEBUG ===');
+    console.log('Path:', path);
+    console.log('Authorization header:', authHeader ? 'Present' : 'Missing');
+    console.log('X-API-Key header:', apiKeyHeader ? 'Present' : 'Missing');
+    console.log('All headers:', JSON.stringify(req.headers, null, 2));
+    console.log('==================');
+    
     let user = null;
     let apiKeyId = null;
     
