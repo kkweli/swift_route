@@ -116,6 +116,12 @@ class handler(BaseHTTPRequestHandler):
             
             # Format response
             response_data = self._format_response(result)
+
+            # Instrumentation: log optimization request and result to Supabase REST (non-blocking)
+            try:
+                self._log_optimization_event(request, result, response_data)
+            except Exception as e:
+                logging.warning(f"Failed to log optimization event: {e}")
             
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
@@ -171,6 +177,53 @@ class handler(BaseHTTPRequestHandler):
             return VehicleProfile.create_motorcycle()
         else:
             return VehicleProfile.create_car()
+
+    def _log_optimization_event(self, request_obj, result, response_data):
+        """Send a log of the optimization request and result to Supabase REST API.
+
+        The function uses environment variables `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+        Table: optimization_logs (suggested schema)
+        { request_time, origin, destination, vehicle_type, optimization_criteria, processing_time_ms, baseline_time_minutes, optimized_time_minutes, improvements (json), traffic_info (json), confidence_score }
+        """
+        supabase_url = os.getenv('SUPABASE_URL')
+        service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        if not supabase_url or not service_key:
+            return
+
+        try:
+            import urllib.request, urllib.error
+            payload = {
+                'request_time': datetime.utcnow().isoformat() + 'Z',
+                'origin': json.dumps(request_obj.origin),
+                'destination': json.dumps(request_obj.destination),
+                'vehicle_type': request_obj.vehicle_profile.vehicle_type.value,
+                'optimization_criteria': request_obj.optimization_criteria,
+                'processing_time_ms': response_data.get('metadata', {}).get('processing_time', 0),
+                'baseline_time_minutes': response_data.get('data', {}).get('baseline_route', {}).get('estimated_time', 0),
+                'optimized_time_minutes': response_data.get('data', {}).get('optimized_route', {}).get('estimated_time', 0),
+                'improvements': json.dumps(response_data.get('data', {}).get('improvements', {})),
+                'traffic_info': json.dumps(response_data.get('data', {}).get('traffic_info', {})),
+                'confidence_score': response_data.get('data', {}).get('optimized_route', {}).get('confidence_score', None)
+            }
+
+            endpoint = f"{supabase_url.rstrip('/')}/rest/v1/optimization_logs"
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(endpoint, data=data, method='POST')
+            req.add_header('apikey', service_key)
+            req.add_header('Authorization', f'Bearer {service_key}')
+            req.add_header('Content-Type', 'application/json')
+            req.add_header('Prefer', 'return=representation')
+
+            # Fire and forget but attempt to read response to ensure request completes
+            try:
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    resp.read()
+            except Exception as e:
+                # non-fatal
+                logging.debug(f"Optimization log POST failed: {e}")
+
+        except Exception as e:
+            logging.debug(f"Failed to prepare optimization log: {e}")
     
     def _format_response(self, result) -> dict:
         """Format optimization result for API response"""

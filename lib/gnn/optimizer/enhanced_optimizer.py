@@ -12,6 +12,10 @@ from dataclasses import dataclass, field
 from ..models.vehicle import VehicleProfile
 from ..network.osrm_client import OSRMClient, OSRMError
 from .traffic_analyzer import TrafficAnalyzer, AmenityRecommender
+import os
+import json
+import urllib.request
+import urllib.error
 
 
 @dataclass
@@ -52,6 +56,13 @@ class EnhancedOptimizer:
         self.traffic_analyzer = TrafficAnalyzer()
         self.amenity_recommender = AmenityRecommender()
         self.cache = {}
+        # Load lightweight time-of-day multipliers (Option 3)
+        self.time_of_day_multiplier = 1.0
+        try:
+            self.time_of_day_multiplier = self._fetch_time_of_day_multiplier()
+            print(f"Loaded time-of-day multiplier: {self.time_of_day_multiplier}")
+        except Exception as e:
+            print("Could not load time-of-day multiplier, using 1.0", e)
     
     def optimize(
         self,
@@ -354,7 +365,9 @@ class EnhancedOptimizer:
         
         # Metrics
         distance_km = osrm_route.get("distance", 0) / 1000.0
-        time_minutes = osrm_route.get("duration", 0) / 60.0
+        # Apply optional time-of-day multiplier to better reflect historic congestion
+        raw_time_minutes = osrm_route.get("duration", 0) / 60.0
+        time_minutes = raw_time_minutes * (self.time_of_day_multiplier or 1.0)
         cost_usd = self._calculate_cost(distance_km, vehicle_profile)
         emissions_kg = self._calculate_emissions(distance_km, vehicle_profile)
         
@@ -369,6 +382,38 @@ class EnhancedOptimizer:
             algorithm_used=algorithm,
             processing_time_ms=processing_time_ms
         )
+
+    def _fetch_time_of_day_multiplier(self) -> float:
+        """Fetch multiplier for current UTC hour from Supabase table `time_of_day_multipliers`.
+
+        Expects an environment with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+        Table schema (suggested): hour int, multiplier float
+        """
+        supabase_url = os.getenv('SUPABASE_URL')
+        service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        if not supabase_url or not service_key:
+            return 1.0
+
+        hour = datetime.utcnow().hour
+        # Build REST endpoint
+        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/time_of_day_multipliers?hour=eq.{hour}&select=multiplier"
+        req = urllib.request.Request(endpoint, method='GET')
+        req.add_header('apikey', service_key)
+        req.add_header('Authorization', f'Bearer {service_key}')
+        req.add_header('Accept', 'application/json')
+
+        try:
+            with urllib.request.urlopen(req, timeout=2) as resp:
+                body = resp.read().decode('utf-8')
+                data = json.loads(body)
+                if isinstance(data, list) and len(data) > 0 and 'multiplier' in data[0]:
+                    return float(data[0]['multiplier'])
+        except urllib.error.HTTPError as he:
+            print('HTTPError fetching multipliers', he.code, he.reason)
+        except Exception as e:
+            print('Error fetching multipliers:', e)
+
+        return 1.0
     
     @staticmethod
     def _calculate_cost(distance_km: float, vehicle: VehicleProfile) -> float:
