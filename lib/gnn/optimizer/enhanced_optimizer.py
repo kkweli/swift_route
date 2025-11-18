@@ -73,7 +73,9 @@ class EnhancedOptimizer:
         destination: Tuple[float, float],
         vehicle_profile: VehicleProfile,
         optimization_criteria: str = 'time',
-        find_alternatives: bool = True
+        find_alternatives: bool = True,
+        num_alternatives: int = 2,
+        factor: float = 1.0
     ) -> Optional[OptimizationResponse]:
         """
         Optimize route with meaningful variance
@@ -108,8 +110,11 @@ class EnhancedOptimizer:
             if find_alternatives:
                 print("Finding alternative routes...")
                 alternatives = self._get_alternative_routes(
-                    origin, destination, vehicle_profile, num_alternatives=2
+                    origin, destination, vehicle_profile, num_alternatives=num_alternatives
                 )
+
+            # Build a diverse candidate set (pareto-like selection)
+            candidates = self._build_candidate_set(primary=optimized, alternatives=alternatives, vehicle_profile=vehicle_profile, criteria=optimization_criteria, factor=factor, max_candidates=num_alternatives + 1)
             
             # Calculate improvements
             improvements = {
@@ -142,7 +147,7 @@ class EnhancedOptimizer:
             
             return OptimizationResponse(
                 primary_route=optimized,
-                alternative_routes=alternatives,
+                alternative_routes=candidates,
                 baseline_route=baseline,
                 improvements=improvements,
                 metadata={
@@ -231,7 +236,8 @@ class EnhancedOptimizer:
         self,
         routes: List[Dict],
         vehicle_profile: VehicleProfile,
-        criteria: str
+        criteria: str,
+        factor: float = 1.0
     ) -> Dict:
         """
         Select best route based on optimization criteria
@@ -247,7 +253,7 @@ class EnhancedOptimizer:
         # Score each route based on criteria
         scored_routes = []
         for route in routes:
-            score = self._calculate_route_score(route, vehicle_profile, criteria)
+            score = self._calculate_route_score(route, vehicle_profile, criteria, factor=factor)
             scored_routes.append((score, route))
         
         # Sort by score (lower is better)
@@ -260,7 +266,8 @@ class EnhancedOptimizer:
         self,
         route: Dict,
         vehicle_profile: VehicleProfile,
-        criteria: str
+        criteria: str,
+        factor: float = 1.0
     ) -> float:
         """
         Calculate weighted score for route based on criteria
@@ -275,17 +282,23 @@ class EnhancedOptimizer:
         
         # Weighted scoring based on criteria
         # Rebalanced weights to more strongly prefer lower travel time while still considering distance/cost
+        # Apply factor to time weight: factor <1 => stronger time preference (favors shorter time), >1 => weaker time preference
+        time_weight_base = 1.0
         if criteria == 'distance':
-            return distance_km * 1.0 + time_minutes * 0.08 + cost * 0.02
+            time_weight = 0.08 * factor
+            return distance_km * 1.0 + time_minutes * time_weight + cost * 0.02
         elif criteria == 'time':
-            return time_minutes * 1.0 + distance_km * 0.05 + cost * 0.02
+            time_weight = time_weight_base * factor
+            return time_minutes * time_weight + distance_km * 0.05 + cost * 0.02
         elif criteria == 'cost':
-            return cost * 1.0 + time_minutes * 0.2 + distance_km * 0.02
+            time_weight = 0.2 * factor
+            return cost * 1.0 + time_minutes * time_weight + distance_km * 0.02
         elif criteria == 'emissions':
-            return emissions * 1.0 + time_minutes * 0.1 + distance_km * 0.02
+            time_weight = 0.1 * factor
+            return emissions * 1.0 + time_minutes * time_weight + distance_km * 0.02
         else:
-            # Balanced scoring with a bias to time
-            return distance_km * 0.3 + time_minutes * 0.5 + cost * 0.2
+            # Balanced scoring with a bias to time; apply factor
+            return distance_km * 0.3 + time_minutes * (0.5 * factor) + cost * 0.2
     
     def _apply_synthetic_optimization(
         self,
@@ -349,6 +362,124 @@ class EnhancedOptimizer:
         except Exception as e:
             print(f"Error getting alternatives: {e}")
             return []
+
+        except Exception as e:
+            print(f"Error getting alternatives: {e}")
+            return []
+
+    def _build_candidate_set(self, primary: RouteResult, alternatives: List[RouteResult], vehicle_profile: VehicleProfile, criteria: str, factor: float = 1.0, max_candidates: int = 3) -> List[RouteResult]:
+        """
+        Build a diverse set of candidate routes: include fastest, cheapest, shortest and the primary optimized route.
+        Deduplicate near-duplicate candidates.
+        """
+        # Collect pool: primary + alternatives
+        pool = [primary] + (alternatives or [])
+
+        # Determine extremes
+        fastest = min(pool, key=lambda r: r.time_minutes)
+        cheapest = min(pool, key=lambda r: r.cost_usd)
+        shortest = min(pool, key=lambda r: r.distance_km)
+
+        # Start with prioritized list
+        candidates = [primary, fastest, cheapest, shortest]
+
+        # Deduplicate by similarity (time/distance within 2%)
+        unique = []
+        for c in candidates:
+            is_dup = False
+            for u in unique:
+                if abs(u.time_minutes - c.time_minutes) / max(1.0, u.time_minutes) < 0.02 and abs(u.distance_km - c.distance_km) / max(1.0, u.distance_km) < 0.02:
+                    is_dup = True
+                    break
+            if not is_dup:
+                unique.append(c)
+
+        # If we still need more, append remaining alternatives sorted by score according to criteria
+        if len(unique) < max_candidates:
+            remaining = [r for r in pool if r not in unique]
+            # sort remaining by scoring function (lower better)
+            remaining.sort(key=lambda r: self._calculate_route_score({'distance': r.distance_km * 1000, 'duration': r.time_minutes * 60}, vehicle_profile, criteria, factor=factor))
+                for r in remaining:
+                    if len(unique) >= max_candidates:
+                        break
+                    unique.append(r)
+        
+        # Ensure that the primary route is always present and at the first position
+        if primary not in unique:
+            unique.insert(0, primary) # Insert at the beginning if not present
+        elif unique[0] != primary:
+            unique.remove(primary) # Remove existing primary
+            unique.insert(0, primary) # Insert at the beginning
+
+        return unique[:max_candidates]
+
+    def _map_vehicle_to_profile(self, vehicle_profile: VehicleProfile) -> str:
+        """Map VehicleProfile to OSRM profile string"""
+        mapping = {
+            VehicleType.CAR: 'car',
+            VehicleType.TRUCK: 'truck',
+            VehicleType.MOTORCYCLE: 'motorcycle',
+            VehicleType.ELECTRIC_CAR: 'car'  # OSRM doesn't have electric car profile, use car
+        }
+        return mapping.get(vehicle_profile.vehicle_type, 'car')
+
+    def _calculate_cost(self, distance_km: float, vehicle_profile: VehicleProfile) -> float:
+        """Calculate estimated cost of route in USD"""
+        # Base cost per km for fuel/energy
+        cost_per_km = 0.15  # Default
+
+        if vehicle_profile.fuel_type == FuelType.ELECTRIC:
+            cost_per_km = 0.05  # Cheaper electricity
+        elif vehicle_profile.vehicle_type == VehicleType.TRUCK:
+            cost_per_km = 0.30  # More expensive fuel/maintenance
+
+        total_cost = distance_km * cost_per_km
+
+        # Add a small base cost for tolls, parking etc. (simplified)
+        total_cost += 2.0  # Base trip cost
+        
+        # Factor in toll sensitivity (if implemented)
+        # if vehicle_profile.toll_sensitive and total_cost > 5: # Example threshold
+        #     total_cost *= 1.2 # Penalize tolls
+
+        return round(total_cost, 2)
+
+    def _calculate_emissions(self, distance_km: float, vehicle_profile: VehicleProfile) -> float:
+        """Calculate estimated CO2 emissions in kg"""
+        # Average CO2 emissions per km (simplified)
+        emissions_per_km = 0.12  # Default for car
+
+        if vehicle_profile.fuel_type == FuelType.ELECTRIC:
+            emissions_per_km = 0.01  # Very low emissions (grid mix dependent)
+        elif vehicle_profile.vehicle_type == VehicleType.TRUCK:
+            emissions_per_km = 0.30  # Higher emissions
+
+        total_emissions = distance_km * emissions_per_km
+        return round(total_emissions, 2)
+
+    def _map_vehicle_to_profile(self, vehicle_profile: VehicleProfile) -> str:
+        """Map VehicleProfile to OSRM profile string"""
+        mapping = {
+            VehicleType.CAR: 'car',
+            VehicleType.TRUCK: 'truck',
+            VehicleType.MOTORCYCLE: 'motorcycle',
+            VehicleType.ELECTRIC_CAR: 'car'  # OSRM doesn't have electric car profile, use car
+        }
+        return mapping.get(vehicle_profile.vehicle_type, 'car')
+
+    def _fetch_time_of_day_multiplier(self) -> float:
+        """Fetch the current time-of-day multiplier from Supabase REST API.
+
+        The function retrieves the multiplier for the current weekday and hour.
+        If not found, it falls back to the overall average for the weekday, then 1.0.
+    def _calculate_cost(self, distance_km: float, vehicle_profile: VehicleProfile) -> float:
+
+                for r in remaining:
+                    if len(unique) >= max_candidates:
+                        break
+                    unique.append(r)
+
+            return unique[:max_candidates]
     
     def _transform_osrm_route(
         self,
