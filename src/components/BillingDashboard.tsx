@@ -3,7 +3,7 @@
  * Uses Stripe Payment Links for client-side checkout (no backend Stripe API calls)
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // Payment Link configuration interface
 interface PaymentLinkConfig {
@@ -81,6 +81,7 @@ export function BillingDashboard() {
   const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const progressRef = useRef<HTMLDivElement | null>(null);
 
   const fetchSubscription = useCallback(async () => {
     if (!user) return;
@@ -151,6 +152,16 @@ export function BillingDashboard() {
       setIsSyncing(false);
     }
   };
+
+  useEffect(() => {
+    if (!progressRef.current || !subscription) return;
+    try {
+      const pct = Math.min(100, ((subscription.requests_used || 0) / (subscription.monthly_requests_included || 1)) * 100);
+      progressRef.current.style.width = `${pct}%`;
+    } catch (e) {
+      // ignore DOM update errors
+    }
+  }, [subscription]);
 
   const handleUpgrade = async (tier: string) => {
     if (!user) return;
@@ -253,12 +264,9 @@ export function BillingDashboard() {
             
             {subscription.requests_remaining !== undefined && (
               <div className="w-full bg-secondary rounded-full h-2">
-                {/* eslint-disable-next-line */}
                 <div
+                  ref={progressRef}
                   className="bg-primary h-2 rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, ((subscription.requests_used || 0) / subscription.monthly_requests_included) * 100)}%`
-                  }}
                 />
               </div>
             )}
