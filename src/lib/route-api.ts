@@ -75,7 +75,7 @@ export interface APIError {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   request_id: string;
   timestamp: string;

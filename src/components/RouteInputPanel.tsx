@@ -182,7 +182,7 @@ export function RouteInputPanel({
           <Select
             value={parameters.vehicleType}
             onValueChange={(value) =>
-              onParametersChange({ vehicleType: value as any })
+              onParametersChange({ vehicleType: value as OptimizationParameters['vehicleType'] })
             }
             disabled={!canUseAdvancedVehicles && parameters.vehicleType !== 'car'}
           >
@@ -217,7 +217,7 @@ export function RouteInputPanel({
           <Select
             value={parameters.optimizeFor}
             onValueChange={(value) =>
-              onParametersChange({ optimizeFor: value as any })
+              onParametersChange({ optimizeFor: value as OptimizationParameters['optimizeFor'] })
             }
           >
             <SelectTrigger>

@@ -3,7 +3,7 @@
  * Display usage statistics and charts
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -37,7 +37,7 @@ export function UsageAnalytics() {
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchUsageData = async () => {
+  const fetchUsageData = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -66,14 +66,14 @@ export function UsageAnalytics() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
 
   useEffect(() => {
     fetchUsageData();
     // Refresh every 30 seconds
     const interval = setInterval(fetchUsageData, 30000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [fetchUsageData, user]);
 
   if (isLoading && !usageData) {
     return (

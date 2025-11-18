@@ -3,7 +3,7 @@
  * Client-side utilities for interacting with the SwiftRoute API
  */
 
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   data: T;
   metadata?: {
     processing_time?: number;
@@ -22,7 +22,7 @@ export interface APIError {
   error: {
     code: string;
     message: string;
-    details?: any;
+    details?: unknown;
   };
   request_id: string;
   timestamp: string;
@@ -151,7 +151,7 @@ export class SwiftRouteAPIClient {
   /**
    * Get API documentation
    */
-  async getAPIDocs(): Promise<any> {
+  async getAPIDocs(): Promise<unknown> {
     return this.makeRequest('/api/v1/docs');
   }
 
@@ -161,7 +161,7 @@ export class SwiftRouteAPIClient {
   async testAPIKey(apiKey?: string): Promise<{
     valid: boolean;
     error?: string;
-    clientInfo?: any;
+    clientInfo?: unknown;
   }> {
     const testKey = apiKey || this.apiKey;
     if (!testKey) {
@@ -264,7 +264,7 @@ export class APIClientError extends Error {
 export const apiClient = new SwiftRouteAPIClient();
 
 // Utility functions
-export function isAPIError(error: any): error is APIClientError {
+export function isAPIError(error: unknown): error is APIClientError {
   return error instanceof APIClientError;
 }
 

@@ -3,7 +3,7 @@
  * Main orchestrator component for route optimization feature
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { InteractiveMap, LatLng } from './InteractiveMap';
 import { RouteInputPanel, OptimizationParameters, SubscriptionData } from './RouteInputPanel';
 import { MetricsComparison } from './MetricsComparison';
@@ -64,12 +64,7 @@ export function RouteOptimizer() {
   const [isCreatingTrial, setIsCreatingTrial] = useState(false);
 
   // Fetch subscription data and set up API key from auth token
-  useEffect(() => {
-    fetchSubscription();
-    setupAPIKey();
-  }, [user]);
-
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     if (!user) {
       // User must be logged in to use the route optimizer
       return;
@@ -112,7 +107,7 @@ export function RouteOptimizer() {
           monthly_requests_included: 100,
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error fetching subscription:', error);
       // Set default trial subscription on exception
       setSubscription({
@@ -121,51 +116,9 @@ export function RouteOptimizer() {
         monthly_requests_included: 100,
       });
     }
-  };
+  }, [user]);
 
-  const setupAPIKey = async () => {
-    if (!user) return;
-
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      // For dashboard users, check if they have a trial subscription
-      // If trial and no API key exists, create one automatically
-      const response = await fetch('/api/v1/keys', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const activeKeys = data.data?.filter((k: any) => k.status === 'active') || [];
-        
-        if (activeKeys.length > 0) {
-          // User has API keys - for dashboard use, we'll use their session token
-          // The backend will recognize authenticated users
-          setApiKey(session.access_token);
-        } else if (subscription.tier === 'trial') {
-          // Trial user with no keys - create trial key
-          await createTrialKey();
-        } else {
-          // Paid user with no keys - use session token
-          setApiKey(session.access_token);
-        }
-      } else {
-        // If keys endpoint fails, still allow dashboard use with session token
-        setApiKey(session.access_token);
-      }
-    } catch (error) {
-      console.error('Error setting up API key:', error);
-      // Fallback: use session token
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setApiKey(session.access_token);
-      }
-    }
-  };
-
-  const createTrialKey = async () => {
+  const createTrialKey = useCallback(async () => {
     if (!user || isCreatingTrial) return;
 
     setIsCreatingTrial(true);
@@ -217,7 +170,57 @@ export function RouteOptimizer() {
     } finally {
       setIsCreatingTrial(false);
     }
-  };
+  }, [user, isCreatingTrial, toast]);
+
+  const setupAPIKey = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      // For dashboard users, check if they have a trial subscription
+      // If trial and no API key exists, create one automatically
+      const response = await fetch('/api/v1/keys', {
+        headers: { Authorization: `Bearer ${session.access_token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const activeKeys = ((data.data as Array<{ status?: string }>) || []).filter((k) => k.status === 'active');
+        
+        if (activeKeys.length > 0) {
+          // User has API keys - for dashboard use, we'll use their session token
+          // The backend will recognize authenticated users
+          setApiKey(session.access_token);
+        } else if (subscription.tier === 'trial') {
+          // Trial user with no keys - create trial key
+          await createTrialKey();
+        } else {
+          // Paid user with no keys - use session token
+          setApiKey(session.access_token);
+        }
+      } else {
+        // If keys endpoint fails, still allow dashboard use with session token
+        setApiKey(session.access_token);
+      }
+    } catch (error: unknown) {
+      console.error('Error setting up API key:', error);
+      // Fallback: use session token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setApiKey(session.access_token);
+      }
+    }
+  }, [user, subscription.tier, createTrialKey]);
+
+  useEffect(() => {
+    fetchSubscription();
+    setupAPIKey();
+  }, [fetchSubscription, setupAPIKey, user]);
+
+
+
 
   // Handle map clicks
   const handleMapClick = (latlng: LatLng) => {
@@ -347,11 +350,11 @@ export function RouteOptimizer() {
         title: 'Route optimized!',
         description: `Saved ${response.data.improvements.distance_saved.toFixed(1)} km and ${response.data.improvements.co2_saved.toFixed(2)} kg CO₂`,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Optimization error:', error);
       toast({
         title: 'Optimization failed',
-        description: formatRouteAPIError(error),
+        description: formatRouteAPIError(error as unknown as Error),
         variant: 'destructive',
       });
     } finally {
