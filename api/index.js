@@ -185,30 +185,35 @@ export default async function handler(req, res) {
     // Try API key authentication (B2B clients)
     if (!user && apiKeyHeader) {
       const keyHash = hashAPIKey(apiKeyHeader);
-      
+
       const { data: apiKey, error: keyError } = await supabase
         .from('api_keys')
-        .select('id, user_id, status')
+        .select('id, user_id, status, request_count')
         .eq('key_hash', keyHash)
         .eq('status', 'active')
         .single();
-      
+
       if (!keyError && apiKey) {
         // Get user associated with API key
         const { data: { user: keyUser }, error: userError } = await supabase.auth.admin.getUserById(apiKey.user_id);
-        
+
         if (!userError && keyUser) {
           user = keyUser;
           apiKeyId = apiKey.id;
-          
-          // Update API key usage stats
-          await supabase
-            .from('api_keys')
-            .update({
-              last_used: new Date().toISOString(),
-              request_count: supabase.rpc('increment', { row_id: apiKey.id })
-            })
-            .eq('id', apiKey.id);
+
+          // Update API key usage stats: set last_used and increment request_count safely
+          try {
+            const newCount = (apiKey.request_count || 0) + 1;
+            await supabase
+              .from('api_keys')
+              .update({
+                last_used: new Date().toISOString(),
+                request_count: newCount
+              })
+              .eq('id', apiKey.id);
+          } catch (e) {
+            console.warn('Failed to update api_keys usage stats', e?.message || e);
+          }
         }
       }
     }
@@ -599,6 +604,41 @@ export default async function handler(req, res) {
           },
           message: 'API key regenerated. Save this key now - it will not be shown again.'
         });
+      }
+
+      // DELETE /keys/:id - Revoke/Delete an API key owned by the user
+      const deleteMatch = path.match(/\/keys\/([^\/\?#]+)/);
+      if (deleteMatch && req.method === 'DELETE') {
+        const keyId = deleteMatch[1];
+
+        // Ensure the key exists and belongs to the requesting user
+        const { data: existingKey, error: getError } = await supabase
+          .from('api_keys')
+          .select('id, user_id, status')
+          .eq('id', keyId)
+          .single();
+
+        if (getError || !existingKey) {
+          return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'API key not found' } });
+        }
+
+        if (existingKey.user_id !== user.id) {
+          return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You do not own this API key' } });
+        }
+
+        // Mark the key as revoked (do not permanently delete to keep audit trail)
+        const { data: revoked, error: revokeError } = await supabase
+          .from('api_keys')
+          .update({ status: 'revoked', updated_at: new Date().toISOString() })
+          .eq('id', keyId)
+          .select()
+          .single();
+
+        if (revokeError) {
+          return res.status(500).json({ error: { code: 'REVOKE_FAILED', message: revokeError.message } });
+        }
+
+        return res.status(200).json({ data: { id: revoked.id, status: revoked.status }, message: 'API key revoked' });
       }
 
       return res.status(405).json({
