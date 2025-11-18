@@ -217,6 +217,15 @@ export default async function handler(req, res) {
         }
       }
     }
+    // If authentication failed for both methods, return 401 early to avoid handlers dereferencing `user`
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHENTICATED',
+          message: 'Authentication required. Provide Authorization: Bearer <token> or X-API-Key: <key>'
+        }
+      });
+    }
     
     // If neither authentication method worked, return 401
     if (!user) {
