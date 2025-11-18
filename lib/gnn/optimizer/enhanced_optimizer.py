@@ -2,13 +2,16 @@
 Enhanced Route Optimizer
 Creates meaningful variance between baseline and optimized routes
 Uses OSRM for baseline + custom optimization for improved routes
+Includes traffic analysis and amenity recommendations
 """
 import time
 import random
+from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from ..models.vehicle import VehicleProfile
 from ..network.osrm_client import OSRMClient, OSRMError
+from .traffic_analyzer import TrafficAnalyzer, AmenityRecommender
 
 
 @dataclass
@@ -33,6 +36,8 @@ class OptimizationResponse:
     baseline_route: RouteResult
     improvements: Dict[str, float]
     metadata: Dict[str, Any]
+    traffic_info: Dict[str, Any] = field(default_factory=dict)
+    amenities: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class EnhancedOptimizer:
@@ -44,6 +49,8 @@ class EnhancedOptimizer:
     
     def __init__(self):
         self.osrm_client = OSRMClient()
+        self.traffic_analyzer = TrafficAnalyzer()
+        self.amenity_recommender = AmenityRecommender()
         self.cache = {}
     
     def optimize(
@@ -98,6 +105,25 @@ class EnhancedOptimizer:
                 'emissions_saved_kg': round(baseline.emissions_kg - optimized.emissions_kg, 2)
             }
             
+            # Analyze traffic conditions
+            current_hour = datetime.utcnow().hour
+            area_type = self.traffic_analyzer.classify_area_type(optimized.coordinates)
+            traffic_multiplier = self.traffic_analyzer.get_traffic_multiplier(current_hour, area_type)
+            traffic_description = self.traffic_analyzer.get_traffic_description(current_hour, area_type)
+            
+            traffic_info = {
+                'current_hour_utc': current_hour,
+                'area_type': area_type,
+                'traffic_level': traffic_multiplier,
+                'traffic_description': traffic_description,
+                'avoid_route': self.traffic_analyzer.should_avoid_route(current_hour, area_type)
+            }
+            
+            # Get amenity recommendations
+            amenities = self.amenity_recommender.get_relevant_amenities(
+                current_hour, optimized.time_minutes
+            )
+            
             processing_time = int((time.time() - start_time) * 1000)
             
             return OptimizationResponse(
@@ -112,7 +138,9 @@ class EnhancedOptimizer:
                     'edges_in_graph': 0,
                     'vehicle_type': vehicle_profile.vehicle_type.value,
                     'optimization_criteria': optimization_criteria
-                }
+                },
+                traffic_info=traffic_info,
+                amenities=amenities
             )
             
         except Exception as e:

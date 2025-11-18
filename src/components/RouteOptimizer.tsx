@@ -8,6 +8,7 @@ import { InteractiveMap, LatLng } from './InteractiveMap';
 import { RouteInputPanel, OptimizationParameters, SubscriptionData } from './RouteInputPanel';
 import { MetricsComparison } from './MetricsComparison';
 import { JSONOutputPanel } from './JSONOutputPanel';
+import { TrafficAmenityInfo } from './TrafficAmenityInfo';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -443,17 +444,25 @@ export function RouteOptimizer() {
 
       {/* Results Section */}
       {(baselineRoute || optimizedRoute) && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Metrics Comparison */}
-          <MetricsComparison
-            baselineRoute={baselineRoute}
-            optimizedRoute={optimizedRoute}
-            isTrialUser={subscription.tier === 'trial'}
-          />
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Metrics Comparison */}
+            <MetricsComparison
+              baselineRoute={baselineRoute}
+              optimizedRoute={optimizedRoute}
+              isTrialUser={subscription.tier === 'trial'}
+            />
 
-          {/* JSON Output */}
-          <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
-        </div>
+            {/* JSON Output */}
+            <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
+          </div>
+
+          {/* Traffic and Amenity Information */}
+          <TrafficAmenityInfo
+            trafficInfo={apiResponse?.data?.traffic_info}
+            amenities={apiResponse?.data?.amenities}
+          />
+        </>
       )}
 
       {/* Help Text */}

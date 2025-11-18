@@ -190,7 +190,9 @@ class handler(BaseHTTPRequestHandler):
                     "time_saved": result.improvements['time_saved_minutes'],
                     "cost_saved": result.improvements['cost_saved_usd'],
                     "co2_saved": result.improvements['emissions_saved_kg']
-                }
+                },
+                "traffic_info": result.traffic_info if hasattr(result, 'traffic_info') else {},
+                "amenities": result.amenities if hasattr(result, 'amenities') else []
             },
             "metadata": {
                 "algorithm_used": primary.algorithm_used,

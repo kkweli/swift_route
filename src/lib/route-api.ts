@@ -27,6 +27,20 @@ export interface RouteResult {
   confidence_score?: number;
 }
 
+export interface TrafficInfo {
+  current_hour_utc: number;
+  area_type: string;
+  traffic_level: number;
+  traffic_description: string;
+  avoid_route: boolean;
+}
+
+export interface Amenity {
+  type: string;
+  priority: 'high' | 'medium' | 'low';
+  reason: string;
+}
+
 export interface RouteOptimizationResponse {
   data: {
     baseline_route: RouteResult;
@@ -37,6 +51,8 @@ export interface RouteOptimizationResponse {
       cost_saved: number;
       co2_saved: number;
     };
+    traffic_info?: TrafficInfo;
+    amenities?: Amenity[];
   };
   metadata: {
     algorithm_used: string;
