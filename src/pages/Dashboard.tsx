@@ -15,6 +15,7 @@ import { SubscriptionMetrics } from '@/components/SubscriptionMetrics';
 import { UsageStatistics } from '@/components/UsageStatistics';
 import { APIKeysSummary } from '@/components/APIKeysSummary';
 import { RecentActivity } from '@/components/RecentActivity';
+import { ComprehensiveDocs } from '@/components/ComprehensiveDocs';
 import { useAnalyticsState } from '@/hooks/useAnalytics';
 
 const AnalyticsTab = () => {
@@ -169,109 +170,7 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="docs" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>API Documentation</CardTitle>
-                <CardDescription>
-                  Complete guide to integrating SwiftRoute API
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Quick Links */}
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Card className="border-2">
-                    <CardHeader>
-                      <Code className="h-8 w-8 text-primary mb-2" />
-                      <CardTitle className="text-lg">API Reference</CardTitle>
-                      <CardDescription>
-                        Complete API endpoints, parameters, and responses
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Link 
-                        to="/docs"
-                        className="text-primary hover:underline flex items-center gap-2"
-                      >
-                        View Full Documentation
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-2">
-                    <CardHeader>
-                      <Zap className="h-8 w-8 text-primary mb-2" />
-                      <CardTitle className="text-lg">Quick Start</CardTitle>
-                      <CardDescription>
-                        Get started in minutes with code examples
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Link 
-                        to="/docs"
-                        className="text-primary hover:underline flex items-center gap-2"
-                      >
-                        View Quick Start Guide
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Quick Example */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Quick Example</h3>
-                  <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                    <pre className="text-sm">
-{`curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \\
-  -H "Content-Type: application/json" \\
-  -H "X-API-Key: YOUR_API_KEY" \\
-  -d '{
-    "origin": [-1.2921, 36.8219],
-    "destination": [-1.2864, 36.8172],
-    "vehicle_type": "car",
-    "optimize_for": "time"
-  }'`}
-                    </pre>
-                  </div>
-                </div>
-
-                {/* Key Features */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Key Features</h3>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="flex items-start gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                      <div>
-                        <p className="font-medium">Global Coverage</p>
-                        <p className="text-sm text-muted-foreground">Works anywhere in the world</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                      <div>
-                        <p className="font-medium">Multiple Vehicle Types</p>
-                        <p className="text-sm text-muted-foreground">Car, truck, van, motorcycle, bicycle</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                      <div>
-                        <p className="font-medium">Alternative Routes</p>
-                        <p className="text-sm text-muted-foreground">Get multiple route options</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-2">
-                      <div className="h-2 w-2 rounded-full bg-primary mt-2" />
-                      <div>
-                        <p className="font-medium">Real-time Optimization</p>
-                        <p className="text-sm text-muted-foreground">Sub-second response times</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <ComprehensiveDocs />
           </TabsContent>
         </Tabs>
       </main>
