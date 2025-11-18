@@ -1,10 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users } from 'lucide-react';
+import { Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users, ArrowRight, Zap } from 'lucide-react';
 import { APIKeyManagement } from '@/components/APIKeyManagement';
 import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { BillingDashboard } from '@/components/BillingDashboard';
@@ -202,15 +202,13 @@ const Dashboard = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <a 
-                        href="/docs/API_DOCUMENTATION.md" 
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link 
+                        to="/docs"
                         className="text-primary hover:underline flex items-center gap-2"
                       >
                         View Full Documentation
                         <ArrowRight className="h-4 w-4" />
-                      </a>
+                      </Link>
                     </CardContent>
                   </Card>
 
@@ -223,15 +221,13 @@ const Dashboard = () => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <a 
-                        href="/docs/QUICK_START.md" 
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <Link 
+                        to="/docs"
                         className="text-primary hover:underline flex items-center gap-2"
                       >
                         View Quick Start Guide
                         <ArrowRight className="h-4 w-4" />
-                      </a>
+                      </Link>
                     </CardContent>
                   </Card>
                 </div>

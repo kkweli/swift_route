@@ -17,7 +17,7 @@ const Index = () => {
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button variant="ghost" asChild>
-              <a href="/docs/QUICK_START.md" target="_blank" rel="noopener noreferrer">Docs</a>
+              <Link to="/docs">Docs</Link>
             </Button>
             <Button variant="ghost" asChild>
               <Link to="/auth">Sign In</Link>
@@ -319,8 +319,10 @@ const Index = () => {
                 Start Free Trial <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary">
-              Schedule Demo
+            <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
+              <Link to="/pricing">
+                View Pricing <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
           </div>
         </div>
