@@ -4,6 +4,7 @@ Vercel Serverless Handler with A* Algorithm
 """
 import json
 from datetime import datetime
+import logging
 from http.server import BaseHTTPRequestHandler
 import sys
 import os
@@ -60,6 +61,8 @@ class handler(BaseHTTPRequestHandler):
             # Check for internal auth token (only for internal calls from Node.js)
             internal_auth = self.headers.get('X-Internal-Auth')
             expected_auth = os.getenv('INTERNAL_AUTH_SECRET', 'internal-secret-key')
+            # Log presence of internal auth without printing secret values
+            logging.info(f"Internal auth header present: {bool(internal_auth)}; internal secret configured: {bool(expected_auth)}")
             
             if not internal_auth or internal_auth != expected_auth:
                 error_response = {
@@ -102,8 +105,8 @@ class handler(BaseHTTPRequestHandler):
             )
             
             # Initialize engine and optimize
-            print(f"Optimizing route from {origin} to {destination}")
-            print(f"Vehicle: {vehicle_type}, Optimization: {optimization}")
+            logging.info(f"Optimizing route from {origin} to {destination}")
+            logging.info(f"Vehicle: {vehicle_type}, Optimization: {optimization}")
             
             engine = RouteOptimizationEngine()
             result = engine.optimize(request)
@@ -130,12 +133,15 @@ class handler(BaseHTTPRequestHandler):
                 "traceback": traceback.format_exc()
             }
             
-            print(f"=== OPTIMIZATION ERROR ===")
-            print(f"Error: {e}")
-            print(f"Type: {type(e).__name__}")
-            print(f"Request data: {data if 'data' in locals() else 'N/A'}")
-            traceback.print_exc()
-            print("=" * 50)
+            logging.error("=== OPTIMIZATION ERROR ===")
+            logging.error(f"Error: {e}")
+            logging.error(f"Type: {type(e).__name__}")
+            # Avoid printing token or raw headers; print masked request values only
+            logging.error(f"Request data keys: {list(data.keys()) if 'data' in locals() else 'N/A'}")
+            if os.getenv('DEBUG'):
+                traceback.print_exc()
+            else:
+                logging.error("Enable DEBUG to view full stacktrace")
             
             error_response = {
                 "error": {

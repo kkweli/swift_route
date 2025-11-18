@@ -22,6 +22,26 @@ function hashAPIKey(key) {
   return crypto.createHash('sha256').update(key).digest('hex');
 }
 
+// Mask sensitive headers for debugging but avoid printing secrets
+function maskHeaderValue(key, value) {
+  if (!value) return value;
+  const lower = (key || '').toLowerCase();
+  if (lower === 'authorization' || lower === 'x-api-key' || lower === 'cookie') {
+    // keep a short prefix and mask the rest
+    const prefix = value.slice(0, 12);
+    return `${prefix}...<masked>`;
+  }
+  return value;
+}
+
+function getSanitizedHeaders(req) {
+  const headers = {};
+  for (const h of ['user-agent', 'content-type', 'x-forwarded-for', 'origin', 'referer', 'authorization', 'x-api-key']) {
+    headers[h] = maskHeaderValue(h, req.headers[h]);
+  }
+  return headers;
+}
+
 export default async function handler(req, res) {
   // Enable CORS for all endpoints
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -75,7 +95,7 @@ export default async function handler(req, res) {
       
       const debugInfo = {
         headers_received: {
-          authorization: authHeader ? `${authHeader.substring(0, 20)}...` : 'NOT PROVIDED',
+          authorization: authHeader ? maskHeaderValue('authorization', authHeader) : 'NOT PROVIDED',
           'x-api-key': apiKeyHeader ? `${apiKeyHeader.substring(0, 20)}...` : 'NOT PROVIDED'
         },
         auth_header_format: authHeader ? (authHeader.startsWith('Bearer ') ? 'VALID FORMAT' : 'INVALID FORMAT - must start with "Bearer "') : 'NOT PROVIDED',
@@ -113,8 +133,15 @@ export default async function handler(req, res) {
         }
       }
       
+      // Add a helpful server-side hint about Supabase config, but do not expose secrets
+      const serverInfo = {
+        supabase_url_cfg: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/)/, '') : 'NOT SET',
+        internal_auth_present: !!process.env.INTERNAL_AUTH_SECRET
+      };
+
       return res.status(200).json({
         debug: debugInfo,
+        server: serverInfo,
         authentication_result: authResult,
         instructions: {
           bearer_token: 'Use header: Authorization: Bearer YOUR_TOKEN',
@@ -128,12 +155,18 @@ export default async function handler(req, res) {
     const authHeader = req.headers.authorization;
     const apiKeyHeader = req.headers['x-api-key'];
     
-    // DEBUG: Log headers for troubleshooting
+    // DEBUG: Log minimal headers (masked) for troubleshooting — avoid printing secrets
     console.log('=== AUTH DEBUG ===');
     console.log('Path:', path);
     console.log('Authorization header:', authHeader ? 'Present' : 'Missing');
     console.log('X-API-Key header:', apiKeyHeader ? 'Present' : 'Missing');
-    console.log('All headers:', JSON.stringify(req.headers, null, 2));
+    try {
+      console.log('Sanitized headers:', JSON.stringify(getSanitizedHeaders(req), null, 2));
+    } catch (e) {
+      // fall back to safe summary
+      console.log('Headers could not be stringified for debug');
+    }
+    console.log('Server SUPABASE_URL:', !!process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/)/, '') : 'Not configured');
     console.log('==================');
     
     let user = null;
@@ -189,6 +222,15 @@ export default async function handler(req, res) {
         },
         debug_hint: 'Test your credentials at /api/v1/debug-auth'
       });
+    }
+
+    // Provide a lightweight /self endpoint (GET) for quickly verifying the user session
+    if (path.includes('/self') && req.method === 'GET') {
+      try {
+        return res.status(200).json({ data: { user_id: user.id, email: user.email } });
+      } catch (e) {
+        return res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Unable to fetch user session' } });
+      }
     }
 
     // ==================== PROFILE ENDPOINTS ====================
