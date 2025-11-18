@@ -69,7 +69,9 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
     );
   }
 
-  const usagePercentage = (subscription.requests_used / subscription.monthly_requests_included) * 100;
+  const usagePercentage = subscription.monthly_requests_included > 0 
+    ? (subscription.requests_used / subscription.monthly_requests_included) * 100 
+    : 0;
   const isNearLimit = usagePercentage >= 80;
   const isOverLimit = usagePercentage >= 100;
 
@@ -115,11 +117,11 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
             <CardDescription>Current plan and usage</CardDescription>
           </div>
           <div className="flex gap-2">
-            <Badge className={getTierColor(subscription.tier)}>
-              {subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1)}
+            <Badge className={getTierColor(subscription.tier || 'trial')}>
+              {subscription.tier ? subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1) : 'Trial'}
             </Badge>
-            <Badge className={getStatusColor(subscription.payment_status)}>
-              {subscription.payment_status.charAt(0).toUpperCase() + subscription.payment_status.slice(1)}
+            <Badge className={getStatusColor(subscription.payment_status || 'trial')}>
+              {subscription.payment_status ? subscription.payment_status.charAt(0).toUpperCase() + subscription.payment_status.slice(1) : 'Trial'}
             </Badge>
           </div>
         </div>

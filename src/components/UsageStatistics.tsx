@@ -68,7 +68,7 @@ export function UsageStatistics({ usage, isLoading, error, onRetry }: UsageStati
     );
   }
 
-  const successRate = parseFloat(usage.success_rate);
+  const successRate = usage.success_rate ? parseFloat(usage.success_rate) : 0;
   const getSuccessRateColor = (rate: number) => {
     if (rate >= 95) return 'text-green-600';
     if (rate >= 80) return 'text-yellow-600';
@@ -120,7 +120,7 @@ export function UsageStatistics({ usage, isLoading, error, onRetry }: UsageStati
               {usage.failed_requests.toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">
-              {((usage.failed_requests / usage.total_requests) * 100).toFixed(1)}% failure rate
+              {usage.total_requests > 0 ? ((usage.failed_requests / usage.total_requests) * 100).toFixed(1) : '0.0'}% failure rate
             </p>
           </div>
 
