@@ -20,11 +20,12 @@ export function ComprehensiveDocs() {
       </div>
 
       <Tabs defaultValue="quickstart" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="quickstart">Quick Start</TabsTrigger>
           <TabsTrigger value="api-reference">API Reference</TabsTrigger>
           <TabsTrigger value="examples">Code Examples</TabsTrigger>
-          <TabsTrigger value="integration">Integration Guide</TabsTrigger>
+          <TabsTrigger value="postman">Postman Testing</TabsTrigger>
+          <TabsTrigger value="integration">Integration</TabsTrigger>
         </TabsList>
 
         {/* Quick Start */}
@@ -453,6 +454,212 @@ echo "Time Saved: " . $response['data']['improvements']['time_saved'] . " min\\n
 ?>`}
                 </pre>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Postman Testing */}
+        <TabsContent value="postman" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Testing with Postman</CardTitle>
+              <CardDescription>
+                Step-by-step guide to test SwiftRoute API using Postman
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Method 1: Using API Key */}
+              <div>
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Method 1: Using API Key (Recommended)
+                </h4>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 1: Get Your API Key</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                      <li>• Go to the "API Keys" tab in your dashboard</li>
+                      <li>• Click "Generate New Key"</li>
+                      <li>• Copy the key (starts with sk_live_...)</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 2: Configure Postman Request</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                      <li>• Create a new POST request</li>
+                      <li>• URL: <code className="bg-muted px-2 py-0.5 rounded text-xs">https://swift-route-liard.vercel.app/api/v1/optimize-route</code></li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 3: Add Headers</p>
+                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-gray-400">Key:</span> Content-Type
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Value:</span> application/json
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Key:</span> X-API-Key
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Value:</span> sk_live_your_api_key_here
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 4: Add Request Body (JSON)</p>
+                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto">
+                      <pre className="text-xs">
+{`{
+  "origin": [-1.2921, 36.8219],
+  "destination": [-1.2864, 36.8172],
+  "vehicle_type": "car",
+  "optimize_for": "time"
+}`}
+                      </pre>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 5: Send Request</p>
+                    <p className="text-sm text-muted-foreground ml-4">
+                      Click "Send" and you should receive a 200 OK response with optimized route data
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Method 2: Using Bearer Token */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <Key className="h-4 w-4" />
+                  Method 2: Using Bearer Token (Dashboard Session)
+                </h4>
+                <Alert className="mb-3">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    This method uses your dashboard login session. The token expires after your session ends.
+                  </AlertDescription>
+                </Alert>
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 1: Get Your Session Token</p>
+                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
+                      <li>• Open your browser's Developer Tools (F12)</li>
+                      <li>• Go to the "Application" or "Storage" tab</li>
+                      <li>• Find "Local Storage" → your domain</li>
+                      <li>• Look for Supabase auth token (usually in a key like "sb-*-auth-token")</li>
+                      <li>• Copy the "access_token" value from the JSON</li>
+                    </ul>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 2: Configure Postman Headers</p>
+                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="text-gray-400">Key:</span> Content-Type
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Value:</span> application/json
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Key:</span> Authorization
+                        </div>
+                        <div>
+                          <span className="text-gray-400">Value:</span> Bearer your_access_token_here
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Step 3: Use Same Request Body</p>
+                    <p className="text-sm text-muted-foreground ml-4">
+                      Use the same JSON body as Method 1
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Expected Response */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3">Expected Response (200 OK)</h4>
+                <div className="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto">
+                  <pre className="text-xs">
+{`{
+  "data": {
+    "baseline_route": {
+      "distance": 5.2,
+      "estimated_time": 12.5,
+      "cost": 0.78,
+      "co2_emissions": 0.62
+    },
+    "optimized_route": {
+      "distance": 4.8,
+      "estimated_time": 11.2,
+      "cost": 0.72,
+      "co2_emissions": 0.58
+    },
+    "improvements": {
+      "distance_saved": 0.4,
+      "time_saved": 1.3,
+      "cost_saved": 0.06,
+      "co2_saved": 0.04
+    }
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+
+              {/* Common Errors */}
+              <div className="pt-4 border-t">
+                <h4 className="font-semibold mb-3">Common Errors</h4>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-3 text-sm">
+                    <Badge variant="destructive">401</Badge>
+                    <div>
+                      <p className="font-medium">Unauthorized</p>
+                      <p className="text-muted-foreground">Check your API key or Bearer token is correct</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 text-sm">
+                    <Badge variant="destructive">400</Badge>
+                    <div>
+                      <p className="font-medium">Bad Request</p>
+                      <p className="text-muted-foreground">Verify your JSON body format and coordinate values</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 text-sm">
+                    <Badge variant="destructive">429</Badge>
+                    <div>
+                      <p className="font-medium">Rate Limit Exceeded</p>
+                      <p className="text-muted-foreground">Wait a minute or check your subscription tier limits</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Tips */}
+              <Alert>
+                <CheckCircle2 className="h-4 w-4" />
+                <AlertDescription>
+                  <p className="font-medium mb-2">Pro Tips:</p>
+                  <ul className="text-sm space-y-1">
+                    <li>• Save your request as a Postman Collection for reuse</li>
+                    <li>• Use Postman Environment Variables for your API key</li>
+                    <li>• Test different vehicle types and optimization criteria</li>
+                    <li>• Check the "Analytics" tab to see your test requests</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         </TabsContent>
