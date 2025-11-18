@@ -263,24 +263,26 @@ class EnhancedOptimizer:
         Calculate weighted score for route based on criteria
         """
         distance_km = route.get('distance', 0) / 1000.0
-        time_minutes = route.get('duration', 0) / 60.0
+        # Apply time-of-day multiplier so scoring reflects historical congestion
+        time_minutes = (route.get('duration', 0) / 60.0) * (getattr(self, 'time_of_day_multiplier', 1.0) or 1.0)
         
         # Calculate cost and emissions
         cost = self._calculate_cost(distance_km, vehicle_profile)
         emissions = self._calculate_emissions(distance_km, vehicle_profile)
         
         # Weighted scoring based on criteria
+        # Rebalanced weights to more strongly prefer lower travel time while still considering distance/cost
         if criteria == 'distance':
-            return distance_km * 1.0 + time_minutes * 0.1
+            return distance_km * 1.0 + time_minutes * 0.08 + cost * 0.02
         elif criteria == 'time':
-            return time_minutes * 1.0 + distance_km * 0.1
+            return time_minutes * 1.0 + distance_km * 0.05 + cost * 0.02
         elif criteria == 'cost':
-            return cost * 1.0 + distance_km * 0.05
+            return cost * 1.0 + time_minutes * 0.2 + distance_km * 0.02
         elif criteria == 'emissions':
-            return emissions * 1.0 + distance_km * 0.05
+            return emissions * 1.0 + time_minutes * 0.1 + distance_km * 0.02
         else:
-            # Balanced scoring
-            return distance_km * 0.4 + time_minutes * 0.4 + cost * 0.2
+            # Balanced scoring with a bias to time
+            return distance_km * 0.3 + time_minutes * 0.5 + cost * 0.2
     
     def _apply_synthetic_optimization(
         self,
