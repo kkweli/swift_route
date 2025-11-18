@@ -11,6 +11,9 @@ export interface RouteOptimizationRequest {
   waypoints?: [number, number][];
   vehicle_type?: 'car' | 'truck' | 'van' | 'motorcycle';
   optimize_for?: 'distance' | 'time' | 'cost';
+  alternatives?: number;
+  factor?: number;
+  include_explanation?: boolean;
   avoid_tolls?: boolean;
   avoid_traffic?: boolean;
 }
@@ -45,6 +48,7 @@ export interface RouteOptimizationResponse {
   data: {
     baseline_route: RouteResult;
     optimized_route: RouteResult;
+    candidates?: RouteResult[];
     improvements: {
       distance_saved: number;
       time_saved: number;
@@ -60,6 +64,7 @@ export interface RouteOptimizationResponse {
     request_id: string;
     trial_mode?: boolean;
     upgrade_message?: string;
+    explanation?: unknown;
   };
   usage: {
     requests_remaining: number;
