@@ -632,22 +632,33 @@ export default async function handler(req, res) {
         }
 
         if (existingKey.user_id !== user.id) {
+          console.warn('Revoke attempt by non-owner', { keyId, owner: existingKey.user_id, requester: user?.id });
           return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'You do not own this API key' } });
         }
 
+        // Log context for debugging before attempting revoke
+        console.info('Revoking API key', { keyId, owner: existingKey.user_id, requester: user.id });
+
         // Mark the key as revoked (do not permanently delete to keep audit trail)
-        const { data: revoked, error: revokeError } = await supabase
-          .from('api_keys')
-          .update({ status: 'revoked', updated_at: new Date().toISOString() })
-          .eq('id', keyId)
-          .select()
-          .single();
+        try {
+          const { data: revoked, error: revokeError } = await supabase
+            .from('api_keys')
+            .update({ status: 'revoked', updated_at: new Date().toISOString() })
+            .eq('id', keyId)
+            .select()
+            .single();
 
-        if (revokeError) {
-          return res.status(500).json({ error: { code: 'REVOKE_FAILED', message: revokeError.message } });
+          if (revokeError) {
+            console.error('Supabase revokeError', revokeError);
+            return res.status(500).json({ error: { code: 'REVOKE_FAILED', message: revokeError.message || 'Failed to revoke API key' } });
+          }
+
+          console.info('API key revoked', { id: revoked.id, status: revoked.status });
+          return res.status(200).json({ data: { id: revoked.id, status: revoked.status }, message: 'API key revoked' });
+        } catch (err) {
+          console.error('Unexpected error when revoking API key', err?.message || err);
+          return res.status(500).json({ error: { code: 'REVOKE_EXCEPTION', message: 'Unexpected error while revoking API key' } });
         }
-
-        return res.status(200).json({ data: { id: revoked.id, status: revoked.status }, message: 'API key revoked' });
       }
 
       return res.status(405).json({
