@@ -66,10 +66,12 @@ MVP_STATUS.md
 .qodo
 .vscode
 .kiro
+.github
 docs/*
 supabase/migrations/*.sql
  api_backup/*
-
+.eslintignore
+.gitignore
 deploy.ps1
 deploy.sh
 .env.production.example

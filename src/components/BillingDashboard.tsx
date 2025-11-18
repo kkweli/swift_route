@@ -3,7 +3,7 @@
  * Uses Stripe Payment Links for client-side checkout (no backend Stripe API calls)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 // Payment Link configuration interface
 interface PaymentLinkConfig {
@@ -82,7 +82,24 @@ export function BillingDashboard() {
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  
+  const fetchSubscription = useCallback(async () => {
+    if (!user) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch('/api/v1/billing/subscription', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSubscription(data.data);
+      }
+    } catch (error) {
+      console.error('Error fetching subscription:', error);
+    }
+  }, [user]);
 
   // Handle return from Stripe Payment Link
   useEffect(() => {
@@ -108,25 +125,6 @@ export function BillingDashboard() {
       window.history.replaceState({}, '', '/dashboard');
     }
   }, [fetchSubscription, toast]);
-
-  const fetchSubscription = useCallback(async () => {
-    if (!user) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const response = await fetch('/api/v1/billing/subscription', {
-        headers: { 'Authorization': `Bearer ${session.access_token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSubscription(data.data);
-      }
-    } catch (error) {
-      console.error('Error fetching subscription:', error);
-    }
-  }, [user]);
 
   // Call initial fetch after fetchSubscription is defined
   useEffect(() => {
@@ -255,6 +253,7 @@ export function BillingDashboard() {
             
             {subscription.requests_remaining !== undefined && (
               <div className="w-full bg-secondary rounded-full h-2">
+                {/* eslint-disable-next-line */}
                 <div
                   className="bg-primary h-2 rounded-full transition-all"
                   style={{
