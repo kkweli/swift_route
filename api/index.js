@@ -456,13 +456,14 @@ export default async function handler(req, res) {
       }
 
       try {
-        // Forward request to Python handler
-        const pythonEndpoint = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/v1/optimize-route`;
+        // Forward request to Python handler with internal auth token
+        const pythonEndpoint = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/v1/optimize-route/internal`;
         
         const pythonResponse = await fetch(pythonEndpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-Internal-Auth': process.env.INTERNAL_AUTH_SECRET || 'internal-secret-key',
           },
           body: JSON.stringify(req.body)
         });

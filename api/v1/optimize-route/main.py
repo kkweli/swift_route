@@ -57,6 +57,26 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests - route optimization"""
         try:
+            # Check for internal auth token (only for internal calls from Node.js)
+            internal_auth = self.headers.get('X-Internal-Auth')
+            expected_auth = os.getenv('INTERNAL_AUTH_SECRET', 'internal-secret-key')
+            
+            if not internal_auth or internal_auth != expected_auth:
+                error_response = {
+                    "error": {
+                        "code": "UNAUTHORIZED",
+                        "message": "This endpoint requires authentication. Use /api/v1/optimize-route instead."
+                    },
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                }
+                
+                self.send_response(401)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(error_response).encode())
+                return
+            
             # Read request body
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')

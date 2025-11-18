@@ -11,7 +11,7 @@
   },
   "rewrites": [
     {
-      "source": "/api/v1/optimize-route/(.*)",
+      "source": "/api/v1/optimize-route/internal",
       "destination": "/api/v1/optimize-route/main.py"
     },
     {
