@@ -68,6 +68,61 @@ export default async function handler(req, res) {
       });
     }
 
+    // ==================== DEBUG AUTH ENDPOINT ====================
+    if (path.includes('/debug-auth')) {
+      const authHeader = req.headers.authorization;
+      const apiKeyHeader = req.headers['x-api-key'];
+      
+      const debugInfo = {
+        headers_received: {
+          authorization: authHeader ? `${authHeader.substring(0, 20)}...` : 'NOT PROVIDED',
+          'x-api-key': apiKeyHeader ? `${apiKeyHeader.substring(0, 20)}...` : 'NOT PROVIDED'
+        },
+        auth_header_format: authHeader ? (authHeader.startsWith('Bearer ') ? 'VALID FORMAT' : 'INVALID FORMAT - must start with "Bearer "') : 'NOT PROVIDED',
+        api_key_format: apiKeyHeader ? (apiKeyHeader.startsWith('sk_live_') ? 'VALID FORMAT' : 'UNKNOWN FORMAT') : 'NOT PROVIDED',
+        timestamp: new Date().toISOString()
+      };
+      
+      // Try to authenticate
+      let authResult = { success: false, method: null, error: null };
+      
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.replace('Bearer ', '');
+        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+        
+        if (authError) {
+          authResult = { success: false, method: 'bearer_token', error: authError.message };
+        } else if (authUser) {
+          authResult = { success: true, method: 'bearer_token', user_id: authUser.id, email: authUser.email };
+        }
+      }
+      
+      if (!authResult.success && apiKeyHeader) {
+        const keyHash = hashAPIKey(apiKeyHeader);
+        const { data: apiKey, error: keyError } = await supabase
+          .from('api_keys')
+          .select('id, user_id, status')
+          .eq('key_hash', keyHash)
+          .eq('status', 'active')
+          .single();
+        
+        if (keyError) {
+          authResult = { success: false, method: 'api_key', error: keyError.message };
+        } else if (apiKey) {
+          authResult = { success: true, method: 'api_key', api_key_id: apiKey.id, user_id: apiKey.user_id };
+        }
+      }
+      
+      return res.status(200).json({
+        debug: debugInfo,
+        authentication_result: authResult,
+        instructions: {
+          bearer_token: 'Use header: Authorization: Bearer YOUR_TOKEN',
+          api_key: 'Use header: X-API-Key: sk_live_YOUR_KEY'
+        }
+      });
+    }
+
     // ==================== AUTHENTICATION REQUIRED FOR ALL OTHER ENDPOINTS ====================
     // Support both Bearer token (dashboard) and API key (B2B) authentication
     const authHeader = req.headers.authorization;
@@ -123,7 +178,8 @@ export default async function handler(req, res) {
         error: { 
           code: 'UNAUTHORIZED', 
           message: 'Authorization required. Provide either Bearer token or X-API-Key header.' 
-        }
+        },
+        debug_hint: 'Test your credentials at /api/v1/debug-auth'
       });
     }
 
