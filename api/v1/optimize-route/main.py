@@ -15,7 +15,6 @@ sys.path.insert(0, lib_path)
 
 from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
 from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
-from gnn.llm import summarize_candidates
 
 
 class handler(BaseHTTPRequestHandler):
@@ -119,33 +118,42 @@ class handler(BaseHTTPRequestHandler):
             if not result:
                 raise Exception("No route found between origin and destination. Check if road network data exists in database.")
             
-            # Optionally produce an LLM explanation (safe summarizer if LLM not configured)
+            # Optionally produce an LLM explanation (lazy import + safe fallback)
             explanation = None
-            try:
-                if request.include_explanation:
-                    # Build a lightweight candidate summary input for the summarizer
-                    candidates_input = []
-                    primary = result.primary_route
-                    # include primary and alternatives as simple dicts
+            if request.include_explanation:
+                # Build a lightweight candidate summary input for the summarizer
+                candidates_input = []
+                primary = result.primary_route
+                candidates_input.append({
+                    'distance': primary.distance_km,
+                    'estimated_time': primary.time_minutes,
+                    'cost': primary.cost_usd,
+                    'co2_emissions': primary.emissions_kg,
+                    'algorithm_used': primary.algorithm_used
+                })
+                for alt in result.alternative_routes:
                     candidates_input.append({
-                        'distance': primary.distance_km,
-                        'estimated_time': primary.time_minutes,
-                        'cost': primary.cost_usd,
-                        'co2_emissions': primary.emissions_kg,
-                        'algorithm_used': primary.algorithm_used
+                        'distance': alt.distance_km,
+                        'estimated_time': alt.time_minutes,
+                        'cost': alt.cost_usd,
+                        'co2_emissions': alt.emissions_kg,
+                        'algorithm_used': alt.algorithm_used
                     })
-                    for alt in result.alternative_routes:
-                        candidates_input.append({
-                            'distance': alt.distance_km,
-                            'estimated_time': alt.time_minutes,
-                            'cost': alt.cost_usd,
-                            'co2_emissions': alt.emissions_kg,
-                            'algorithm_used': alt.algorithm_used
-                        })
 
+                try:
+                    # Import lazily so handler can start even if LLM package missing
+                    from gnn.llm import summarize_candidates
                     explanation = summarize_candidates(candidates_input)
-            except Exception as e:
-                logging.warning(f"LLM summarization failed: {e}")
+                except Exception as e:
+                    logging.warning(f"LLM summarization unavailable: {e}")
+                    # Safe deterministic fallback summary (no coordinates, safe text)
+                    try:
+                        explanation = " | ".join([
+                            f"{i+1}: {c['distance']:.1f}km/{c['estimated_time']:.1f}m"
+                            for i, c in enumerate(candidates_input)
+                        ])
+                    except Exception:
+                        explanation = "No explanation available"
 
             # Format response (include explanation if present)
             response_data = self._format_response(result)
