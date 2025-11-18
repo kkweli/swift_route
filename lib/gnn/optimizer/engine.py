@@ -24,6 +24,7 @@ from dataclasses import dataclass, asdict
 from ..network.osrm_client import OSRMClient, OSRMError
 from ..network.route_transformer import RouteTransformer, RouteResult, OptimizationResponse
 from ..models.vehicle import VehicleProfile
+from .enhanced_optimizer import EnhancedOptimizer
 
 
 @dataclass
@@ -43,14 +44,13 @@ class RouteOptimizationEngine:
     """
     
     def __init__(self):
-        """Initialize optimization engine with OSRM"""
-        self.osrm_client = OSRMClient()
-        self.transformer = RouteTransformer()
+        """Initialize optimization engine with Enhanced Optimizer"""
+        self.enhanced_optimizer = EnhancedOptimizer()
         self.cache = {}  # Simple in-memory cache
     
     def optimize(self, request: OptimizationRequest) -> Optional[OptimizationResponse]:
         """
-        Optimize route using OSRM
+        Optimize route using Enhanced Optimizer
         
         Args:
             request: Optimization request
@@ -70,35 +70,22 @@ class RouteOptimizationEngine:
                     print("✓ Using cached route")
                     return cached_result
             
-            # Map vehicle type to OSRM profile
-            profile = self._map_vehicle_to_profile(request.vehicle_profile)
-            
-            print(f"Requesting route from OSRM...")
+            print(f"Optimizing route with Enhanced Optimizer...")
             print(f"  Origin: {request.origin}")
             print(f"  Destination: {request.destination}")
-            print(f"  Profile: {profile}")
+            print(f"  Criteria: {request.optimization_criteria}")
             
-            # Get route from OSRM with vehicle-specific optimization
-            # Request multiple alternatives to find genuinely different routes
-            osrm_response = self.osrm_client.get_route(
+            # Use enhanced optimizer for meaningful variance
+            response = self.enhanced_optimizer.optimize(
                 origin=request.origin,
                 destination=request.destination,
-                profile=profile,
-                alternatives=True,  # Always get alternatives for comparison
-                steps=True,
-                geometries="geojson",
-                continue_straight=False  # Allow more route variations
+                vehicle_profile=request.vehicle_profile,
+                optimization_criteria=request.optimization_criteria,
+                find_alternatives=request.find_alternatives
             )
             
-            # Calculate processing time
-            processing_time = int((time.time() - start_time) * 1000)
-            
-            # Transform to SwiftRoute format
-            response = self.transformer.transform_route(
-                osrm_response,
-                request.vehicle_profile,
-                processing_time_ms=processing_time
-            )
+            if not response:
+                raise Exception("Enhanced optimizer returned no result")
             
             # Cache result
             self.cache[cache_key] = (response, time.time())
@@ -110,42 +97,22 @@ class RouteOptimizationEngine:
                 for key, _ in sorted_cache[:100]:
                     del self.cache[key]
             
+            processing_time = int((time.time() - start_time) * 1000)
+            
             print(f"✓ Route optimized in {processing_time}ms")
-            print(f"  Distance: {response.primary_route.distance_km} km")
-            print(f"  Time: {response.primary_route.time_minutes} min")
+            print(f"  Baseline: {response.baseline_route.distance_km} km, {response.baseline_route.time_minutes} min")
+            print(f"  Optimized: {response.primary_route.distance_km} km, {response.primary_route.time_minutes} min")
+            print(f"  Savings: {response.improvements['distance_saved_km']} km, {response.improvements['time_saved_minutes']} min")
             print(f"  Alternatives: {len(response.alternative_routes)}")
             
             return response
             
-        except OSRMError as e:
-            print(f"✗ OSRM error: {e}")
-            return None
         except Exception as e:
             print(f"✗ Optimization error: {e}")
             import traceback
             traceback.print_exc()
             return None
-    
-    def _map_vehicle_to_profile(self, vehicle: VehicleProfile) -> str:
-        """
-        Map SwiftRoute vehicle type to OSRM routing profile
-        
-        Args:
-            vehicle: Vehicle profile
-            
-        Returns:
-            OSRM profile name (car, bike, foot)
-        """
-        mapping = {
-            'car': 'car',
-            'truck': 'car',  # OSRM doesn't have truck profile
-            'van': 'car',
-            'motorcycle': 'car',
-            'bicycle': 'bike',
-            'electric_car': 'car'
-        }
-        return mapping.get(vehicle.vehicle_type.value, 'car')
-    
+
     def _get_cache_key(self, request: OptimizationRequest) -> str:
         """
         Generate cache key from request
