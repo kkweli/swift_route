@@ -67,16 +67,22 @@ const PRICING_TIERS = [
   },
 ];
 
+interface SubscriptionInfo {
+  tier: string;
+  requests_used?: number;
+  monthly_requests_included?: number;
+  payment_status?: string;
+  requests_remaining?: number;
+}
+
 export function BillingDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [subscription, setSubscription] = useState<any>(null);
+  const [subscription, setSubscription] = useState<SubscriptionInfo | null>(null);
   const [upgradingTier, setUpgradingTier] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  useEffect(() => {
-    fetchSubscription();
-  }, [user]);
+  
 
   // Handle return from Stripe Payment Link
   useEffect(() => {
@@ -101,9 +107,9 @@ export function BillingDashboard() {
       // Clean URL
       window.history.replaceState({}, '', '/dashboard');
     }
-  }, []);
+  }, [fetchSubscription, toast]);
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     if (!user) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -120,7 +126,12 @@ export function BillingDashboard() {
     } catch (error) {
       console.error('Error fetching subscription:', error);
     }
-  };
+  }, [user]);
+
+  // Call initial fetch after fetchSubscription is defined
+  useEffect(() => {
+    fetchSubscription();
+  }, [fetchSubscription]);
 
   // Manual sync function for subscription data
   const syncSubscription = async () => {
@@ -187,11 +198,12 @@ export function BillingDashboard() {
         description: 'Complete your payment in the new window. This page will update automatically.',
       });
       
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Upgrade error:', error);
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: 'Upgrade Failed',
-        description: error.message || 'Failed to start checkout process',
+        description: message || 'Failed to start checkout process',
         variant: 'destructive',
       });
       setUpgradingTier(null);

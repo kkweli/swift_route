@@ -2,8 +2,7 @@
  * SwiftRoute Profile Management Component
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,11 +14,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
+interface UserProfile {
+  full_name?: string;
+  company?: string;
+  phone?: string;
+  preferences?: Record<string, unknown>;
+}
+
 export function ProfileManagement() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   
@@ -34,7 +40,7 @@ export function ProfileManagement() {
     confirm_password: ''
   });
 
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
     try {
@@ -55,7 +61,7 @@ export function ProfileManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
 
   const updateProfile = async () => {
     if (!user) return;
@@ -111,11 +117,11 @@ export function ProfileManagement() {
     }
   };
 
-  const updatePreferences = async (key: string, value: any) => {
+  const updatePreferences = async (key: string, value: unknown) => {
     if (!user || !profile) return;
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const newPreferences = { ...profile.preferences, [key]: value };
+      const newPreferences = { ...(profile.preferences || {}), [key]: value } as Record<string, unknown>;
       const response = await fetch('/api/v1/profile/preferences', {
         method: 'PUT',
         headers: {
@@ -152,7 +158,7 @@ export function ProfileManagement() {
 
   useEffect(() => {
     fetchProfile();
-  }, [user]);
+  }, [fetchProfile]);
 
   if (isLoading && !profile) {
     return <div className="text-center py-12">Loading...</div>;

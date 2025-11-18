@@ -30,16 +30,29 @@ interface APITestResult {
   responseTime: number;
   status: number;
   error?: string;
-  data?: any;
+  data?: unknown;
 }
+
+interface UsageStats {
+  usage_summary: {
+    total_requests: number;
+    success_rate: number;
+    avg_response_time_ms: number;
+  };
+  client_info: { billing_tier: string };
+  rate_limiting: { current_usage: number; requests_per_minute: number };
+}
+
+type RateLimitResult = { request: number; success: boolean; responseTime: number; status: number };
+type RateLimitTest = { results: RateLimitResult[]; rateLimitAt?: number } | null;
 
 export function APIManagement() {
   const [apiKey, setApiKey] = useState('');
   const [client, setClient] = useState<SwiftRouteAPIClient>(new SwiftRouteAPIClient());
   const [testResults, setTestResults] = useState<APITestResult[]>([]);
-  const [usageStats, setUsageStats] = useState<any>(null);
+  const [usageStats, setUsageStats] = useState<UsageStats | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [rateLimitTest, setRateLimitTest] = useState<any>(null);
+  const [rateLimitTest, setRateLimitTest] = useState<RateLimitTest>(null);
 
   // Load API key from localStorage on mount
   useEffect(() => {
@@ -296,7 +309,7 @@ export function APIManagement() {
                   {/* Client Info */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="text-center">
-                      <div className="text-2xl font-bold">{usageStats.usage_summary.total_requests}</div>
+                                      <div className="text-2xl font-bold">{usageStats.usage_summary.total_requests}</div>
                       <div className="text-sm text-muted-foreground">Total Requests</div>
                     </div>
                     <div className="text-center">
@@ -306,11 +319,11 @@ export function APIManagement() {
                       <div className="text-sm text-muted-foreground">Success Rate</div>
                     </div>
                     <div className="text-center">
-                      <div className="text-2xl font-bold">{usageStats.usage_summary.avg_response_time_ms}ms</div>
+                        <div className="text-2xl font-bold">{usageStats.usage_summary.avg_response_time_ms}ms</div>
                       <div className="text-sm text-muted-foreground">Avg Response Time</div>
                     </div>
                     <div className="text-center">
-                      <Badge variant="outline" className="text-lg px-3 py-1">
+                        <Badge variant="outline" className="text-lg px-3 py-1">
                         {usageStats.client_info.billing_tier}
                       </Badge>
                       <div className="text-sm text-muted-foreground">Billing Tier</div>
@@ -375,7 +388,7 @@ export function APIManagement() {
                         </div>
                         <div>
                           <div className="text-2xl font-bold text-green-600">
-                            {rateLimitTest.results.filter((r: any) => r.success).length}
+                            {rateLimitTest.results.filter((r) => r.success).length}
                           </div>
                           <div className="text-sm text-muted-foreground">Successful</div>
                         </div>
@@ -388,7 +401,7 @@ export function APIManagement() {
                       </div>
 
                       <div className="space-y-1 max-h-60 overflow-y-auto">
-                        {rateLimitTest.results.map((result: any, index: number) => (
+                            {rateLimitTest.results.map((result, index: number) => (
                           <div key={index} className="flex items-center justify-between p-2 text-sm border rounded">
                             <div className="flex items-center gap-2">
                               {result.success ? (

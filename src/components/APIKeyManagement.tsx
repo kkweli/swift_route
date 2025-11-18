@@ -3,7 +3,7 @@
  * Manage API keys - generate, view, revoke
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -53,7 +53,7 @@ export function APIKeyManagement() {
   const [subscriptionTier, setSubscriptionTier] = useState<string>('trial');
 
   // Fetch subscription tier
-  const fetchSubscription = async () => {
+  const fetchSubscription = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -71,10 +71,10 @@ export function APIKeyManagement() {
     } catch (error) {
       console.error('Error fetching subscription:', error);
     }
-  };
+  }, [user]);
 
   // Fetch API keys
-  const fetchKeys = async () => {
+  const fetchKeys = useCallback(async () => {
     if (!user) return;
 
     setIsLoading(true);
@@ -103,7 +103,7 @@ export function APIKeyManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, toast]);
 
   // Generate new API key
   const generateKey = async () => {
@@ -220,7 +220,7 @@ export function APIKeyManagement() {
   useEffect(() => {
     fetchSubscription();
     fetchKeys();
-  }, [user]);
+  }, [fetchSubscription, fetchKeys]);
 
   return (
     <div className="space-y-6">
