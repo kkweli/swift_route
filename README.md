@@ -1,419 +1,400 @@
-# SwiftRoute - Intelligent Route Optimization Platform
+# SwiftRoute 🚀
 
-**Production Deployment:** [https://swift-route-liard.vercel.app/](https://swift-route-liard.vercel.app/)
+> **AI-Powered Route Optimization Platform** | [Live Demo](https://swift-route-liard.vercel.app/)
 
-SwiftRoute is an enterprise-grade B2B SaaS platform providing intelligent route optimization services through a RESTful API. The platform leverages Graph Neural Network (GNN) technology and A* pathfinding algorithms to deliver cost-effective, environmentally sustainable routing solutions for logistics operations globally.
+Enterprise-grade B2B SaaS platform delivering intelligent route optimization with 20-30% cost savings and 25%+ emissions reduction. Built for logistics companies committed to sustainable urban development (UN SDG 11).
 
----
-
-## Table of Contents
-
-- [Problem Statement](#problem-statement)
-- [Solution Overview](#solution-overview)
-- [Technology Stack](#technology-stack)
-- [Solution Architecture](#solution-architecture)
-- [API Reference](#api-reference)
-- [Deployment Architecture](#deployment-architecture)
-- [Security & Authentication](#security--authentication)
-- [Testing Strategy](#testing-strategy)
-- [Getting Started](#getting-started)
-- [Environment Configuration](#environment-configuration)
+[![Production](https://img.shields.io/badge/status-production-success)](https://swift-route-liard.vercel.app/)
+[![License](https://img.shields.io/badge/license-proprietary-blue)]()
+[![API](https://img.shields.io/badge/API-v1.0-orange)]()
 
 ---
 
-## Problem Statement
+## 🎯 Quick Links
 
-Urban logistics operations face three critical challenges:
-
-1. **Operational Inefficiency**: Traditional routing systems result in 20-30% excess fuel consumption and operational costs due to suboptimal path selection
-2. **Environmental Impact**: Inefficient routing contributes significantly to urban CO₂ emissions and air quality degradation
-3. **Data Scarcity**: Many emerging markets lack comprehensive traffic and infrastructure data, limiting the effectiveness of conventional GPS-based routing systems
-
-SwiftRoute addresses these challenges through intelligent route optimization powered by Graph Neural Networks, enabling accurate routing even in data-scarce environments while delivering measurable cost and emissions reductions.
+| Resource | Description |
+|----------|-------------|
+| [**Live Platform**](https://swift-route-liard.vercel.app/) | Production deployment |
+| [**API Docs**](https://swift-route-liard.vercel.app/dashboard) | Complete API reference (login required) |
+| **Base URL** | `https://swift-route-liard.vercel.app/api/v1` |
 
 ---
 
-## Solution Overview
+## ⚡ Key Features
 
-### Core Capabilities
+<table>
+<tr>
+<td width="50%">
 
-- **Global Route Optimization**: OSRM-powered routing engine with worldwide coverage
-- **Multi-Vehicle Support**: Optimized routing for cars, trucks, vans, motorcycles, and bicycles
-- **Alternative Route Analysis**: Multiple route options with comparative metrics (distance, time, cost, emissions)
-- **Real-Time Performance**: Sub-second API response times for production workloads
-- **Sustainability Metrics**: Real-time CO₂ emissions tracking and reduction reporting
+### 🎯 **Core Capabilities**
+- Global route optimization (OSRM-powered)
+- Multi-vehicle support (car, truck, van, motorcycle)
+- Real-time traffic analysis
+- Alternative route generation
+- Sub-second API response times
 
-### Business Model
+</td>
+<td width="50%">
 
-- **B2B SaaS Platform**: RESTful API with tiered subscription plans
-- **Usage-Based Billing**: Pay-as-you-go pricing with monthly request quotas
-- **Dual Authentication**: Bearer token (dashboard) and API key (B2B integration) support
-- **Automated Billing**: Stripe integration for subscription management and payment processing
+### 🌱 **Sustainability Impact**
+- 20-30% operational cost reduction
+- 25%+ CO₂ emissions decrease
+- Real-time emissions tracking
+- UN SDG 11 aligned
+- Verified impact reporting
 
-### Impact Metrics
-
-- **20-30% Cost Reduction**: Optimized routing reduces fuel consumption and operational expenses
-- **25%+ Emissions Reduction**: Verified CO₂ savings with detailed reporting
-- **99.9% API Uptime**: Enterprise-grade reliability and performance
-- **UN SDG 11 Alignment**: Contributes to sustainable cities and communities goals
+</td>
+</tr>
+</table>
 
 ---
 
-## Technology Stack
+## 🏗️ Architecture
 
-### Frontend Layer
-- **Framework**: React 18.3 with TypeScript 5.8
-- **Build Tool**: Vite 7.1 with SWC compiler
-- **UI Library**: shadcn/ui components with Radix UI primitives
-- **Styling**: Tailwind CSS 3.4 with custom design system
-- **State Management**: React Query (TanStack Query) for server state
-- **Routing**: React Router 6.30 with client-side navigation
-- **Maps**: Leaflet 1.9 with React-Leaflet integration
+### System Overview
 
-### Backend Layer
-- **API Gateway**: Node.js 22 serverless functions (Vercel)
-- **Route Optimizer**: Python 3.11 serverless functions (Vercel)
-- **Database**: PostgreSQL 15 with PostGIS extension (Supabase)
-- **Authentication**: Supabase Auth with JWT tokens
-- **Payment Processing**: Stripe API v19
-- **External Routing**: OSRM (Open Source Routing Machine) HTTP API
+```mermaid
+graph TB
+    A[Client/User] --> B[React Dashboard]
+    A --> C[External API Clients]
+    
+    B --> D[Vercel Edge Network]
+    C --> D
+    
+    D --> E[Node.js API Gateway]
+    E --> F[Authentication Layer]
+    
+    F --> G[Python Route Optimizer]
+    F --> H[Supabase PostgreSQL]
+    
+    G --> I[Enhanced Optimizer]
+    I --> J[OSRM External API]
+    I --> K[Traffic Analyzer]
+    I --> L[Amenity Recommender]
+    
+    style A fill:#e1f5ff
+    style G fill:#fff4e1
+    style H fill:#f0e1ff
+    style J fill:#e1ffe1
+```
+
+### Request Flow
+
+```mermaid sequenceDiagram
+    participant C as Client
+    participant G as API Gateway
+    participant A as Auth Service
+    participant O as Route Optimizer
+    participant E as OSRM API
+    participant D as Database
+    
+    C->>G: POST /optimize-route
+    G->>A: Validate API Key/Token
+    A->>D: Check Subscription
+    D-->>A: Tier & Limits
+    A-->>G: Authorized
+    
+    G->>O: Optimize Request
+    O->>E: Get Baseline Route
+    E-->>O: Route Data
+    O->>O: Apply Enhanced Algorithm
+    O->>O: Analyze Traffic
+    O->>O: Find Amenities
+    O-->>G: Optimized Result
+    
+    G->>D: Log Usage
+    G-->>C: Response + Improvements
+```
+
+### Data Flow
+
+```mermaid
+flowchart LR
+    A[Request] --> B{Auth Check}
+    B -->|Valid| C[Rate Limit Check]
+    B -->|Invalid| Z[401 Error]
+    
+    C -->|OK| D[Route Optimizer]
+    C -->|Exceeded| Y[429 Error]
+    
+    D --> E[Get Baseline]
+    D --> F[Get Optimized]
+    D --> G[Analyze Traffic]
+    D --> H[Find Amenities]
+    
+    E --> I[Calculate Improvements]
+    F --> I
+    G --> I
+    H --> I
+    
+    I --> J[Log Usage]
+    J --> K[Return Response]
+    
+    style B fill:#ffe1e1
+    style C fill:#fff4e1
+    style D fill:#e1f5ff
+    style I fill:#e1ffe1
+```
+
+---
+
+## 🚀 Quick Start
+
+### For Developers
+
+```bash
+# Clone and install
+git clone <repository_url>
+cd swift_route
+npm install
+
+# Configure environment
+cp .env.example .env
+# Edit .env with your credentials
+
+# Run development
+npm run dev
+```
+
+### For API Users
+
+```bash
+# Example API call
+curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: YOUR_API_KEY" \
+  -d '{
+    "origin": [-1.2921, 36.8219],
+    "destination": [-1.2864, 36.8172],
+    "vehicle_type": "car",
+    "optimize_for": "time"
+  }'
+```
+
+---
+
+## 💻 Technology Stack
+
+<table>
+<tr>
+<td width="33%">
+
+### Frontend
+- React 18.3 + TypeScript
+- Vite 7.1 (SWC)
+- Tailwind CSS + shadcn/ui
+- React Query (TanStack)
+- Leaflet Maps
+
+</td>
+<td width="33%">
+
+### Backend
+- Node.js 22 (Serverless)
+- Python 3.11 (Optimization)
+- Supabase (PostgreSQL)
+- OSRM (Routing Engine)
+- Stripe (Payments)
+
+</td>
+<td width="33%">
 
 ### Infrastructure
-- **Hosting**: Vercel serverless platform (Edge Network)
-- **Database**: Supabase managed PostgreSQL
-- **CDN**: Vercel Edge Network for static assets
-- **SSL/TLS**: Automatic HTTPS with Vercel certificates
-- **Monitoring**: Vercel Analytics and Supabase Dashboard
+- Vercel (Hosting)
+- Edge Network (CDN)
+- Supabase Auth (JWT)
+- GitHub Actions (CI/CD)
+
+</td>
+</tr>
+</table>
 
 ---
 
-## Solution Architecture
-
-### System Architecture Diagram
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Layer                             │
-│  ┌──────────────────┐              ┌──────────────────┐         │
-│  │  Web Dashboard   │              │  External B2B    │         │
-│  │  (React SPA)     │              │  API Clients     │         │
-│  └────────┬─────────┘              └────────┬─────────┘         │
-└───────────┼──────────────────────────────────┼──────────────────┘
-            │                                  │
-            │ HTTPS                            │ HTTPS + API Key
-            ▼                                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Vercel Edge Network (CDN)                     │
-└─────────────────────────────────────────────────────────────────┘
-            │                                  │
-            ▼                                  ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      API Gateway Layer                           │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Node.js Serverless Function (api/index.js)             │   │
-│  │  - Authentication & Authorization                        │   │
-│  │  - Rate Limiting                                         │   │
-│  │  - Request Validation                                    │   │
-│  │  - Usage Logging                                         │   │
-│  └────────┬─────────────────────────────────────────────────┘   │
-└───────────┼──────────────────────────────────────────────────────┘
-            │
-            ├─────────────────┬─────────────────┬──────────────────┐
-            ▼                 ▼                 ▼                  ▼
-┌──────────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│  Profile Mgmt    │ │  API Keys    │ │  Billing     │ │  Usage       │
-│  Endpoints       │ │  Endpoints   │ │  Endpoints   │ │  Analytics   │
-└──────────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
-            │                 │                 │                  │
-            └─────────────────┴─────────────────┴──────────────────┘
-                                    │
-                                    ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                  Route Optimization Layer                        │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Python Serverless Function (api/v1/optimize-route)     │   │
-│  │  - A* Pathfinding Algorithm                             │   │
-│  │  - Graph Neural Network Processing                      │   │
-│  │  - Vehicle Profile Management                           │   │
-│  │  - Emissions Calculation                                │   │
-│  └────────┬─────────────────────────────────────────────────┘   │
-└───────────┼──────────────────────────────────────────────────────┘
-            │
-            ├─────────────────┬──────────────────┐
-            ▼                 ▼                  ▼
-┌──────────────────┐ ┌──────────────┐ ┌──────────────────┐
-│  OSRM External   │ │  Supabase    │ │  Optimization    │
-│  Routing API     │ │  Database    │ │  Engine (GNN)    │
-│  (HTTP)          │ │  (PostgreSQL)│ │  (lib/gnn)       │
-└──────────────────┘ └──────────────┘ └──────────────────┘
-```
-
-### Data Flow Architecture
-
-#### 1. Authentication Flow
-
-```
-Client Request
-    ↓
-API Gateway (api/index.js)
-    ↓
-Authentication Check
-    ├─ Bearer Token → Supabase Auth Validation
-    └─ API Key → Hash Lookup in api_keys table
-    ↓
-User Context Retrieved
-    ↓
-Request Proceeds to Endpoint
-```
-
-#### 2. Route Optimization Flow
-
-```
-POST /api/v1/optimize-route
-    ↓
-API Gateway Authentication
-    ↓
-Request Validation
-    ↓
-Forward to Python Handler (main.py)
-    ↓
-RouteOptimizationEngine.optimize()
-    ├─ Parse Request Parameters
-    ├─ Create Vehicle Profile
-    ├─ Query OSRM for Baseline Route
-    ├─ Apply A* Algorithm with GNN
-    ├─ Calculate Alternative Routes
-    ├─ Compute Emissions & Costs
-    └─ Format Response
-    ↓
-Log Usage to Database
-    ↓
-Return Optimized Routes to Client
-```
-
-#### 3. Billing & Usage Tracking Flow
-
-```
-API Request Received
-    ↓
-Authenticate User/API Key
-    ↓
-Check Subscription Tier & Limits
-    ├─ Requests Remaining > 0 → Proceed
-    └─ Requests Remaining = 0 → Return 429 (Rate Limit)
-    ↓
-Process Request
-    ↓
-Log to usage_logs Table
-    ├─ user_id
-    ├─ api_key_id (if applicable)
-    ├─ endpoint
-    ├─ status_code
-    ├─ response_time_ms
-    └─ timestamp
-    ↓
-Update Subscription Metrics
-    ↓
-Calculate Overage (if applicable)
-```
-
-### Database Schema
-
-#### Core Tables
-
-**users** (Supabase Auth)
-- Managed by Supabase authentication system
-- Stores user credentials and metadata
-
-**user_profiles**
-```sql
-- id (uuid, PK, FK to auth.users)
-- full_name (text)
-- company_name (text)
-- created_at (timestamp)
-- updated_at (timestamp)
-```
-
-**subscriptions**
-```sql
-- id (uuid, PK)
-- user_id (uuid, FK to auth.users)
-- tier (enum: trial, starter, professional, enterprise)
-- requests_per_minute (integer)
-- monthly_requests_included (integer)
-- price_per_request (decimal)
-- stripe_customer_id (text)
-- stripe_subscription_id (text)
-- payment_status (enum: trial, active, past_due, canceled)
-- current_period_start (timestamp)
-- current_period_end (timestamp)
-```
-
-**api_keys**
-```sql
-- id (uuid, PK)
-- user_id (uuid, FK to auth.users)
-- key_hash (text, indexed)
-- key_prefix (text)
-- name (text)
-- status (enum: active, revoked)
-- created_at (timestamp)
-- last_used (timestamp)
-- request_count (integer)
-```
-
-**usage_logs**
-```sql
-- id (uuid, PK)
-- user_id (uuid, FK to auth.users)
-- api_key_id (uuid, FK to api_keys, nullable)
-- endpoint (text)
-- method (text)
-- status_code (integer)
-- response_time_ms (integer)
-- error_code (text, nullable)
-- created_at (timestamp, indexed)
-```
-
----
-
-## API Reference
-
-### Base URL
-```
-Production: https://swift-route-liard.vercel.app/api/v1
-```
+## 📊 API Reference
 
 ### Authentication
 
-**Dashboard Users (Bearer Token)**
-```http
-Authorization: Bearer <supabase_jwt_token>
-```
-
-**B2B Clients (API Key)**
-```http
-X-API-Key: sk_live_<api_key>
+```mermaid
+graph LR
+    A[Client] --> B{Auth Method}
+    B -->|API Key| C[X-API-Key Header]
+    B -->|Session| D[Bearer Token]
+    C --> E[Validate & Authorize]
+    D --> E
+    E --> F[Process Request]
+    
+    style C fill:#e1f5ff
+    style D fill:#fff4e1
 ```
 
 ### Endpoints
 
-#### POST /optimize-route
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/optimize-route` | POST | Optimize route with traffic analysis |
+| `/health` | GET | Service health check |
+| `/profile` | GET/PUT | User profile management |
+| `/keys` | GET/POST | API key management |
+| `/usage` | GET | Usage statistics |
+| `/billing/subscription` | GET | Subscription details |
 
-Optimize a route between origin and destination with optional waypoints.
+### Request Example
 
-**Request Body**
 ```json
 {
   "origin": [-1.2921, 36.8219],
   "destination": [-1.2864, 36.8172],
-  "waypoints": [[-1.2900, 36.8200]],
   "vehicle_type": "car",
   "optimize_for": "time",
-  "avoid_tolls": false,
-  "avoid_traffic": false,
-  "find_alternatives": true,
-  "num_alternatives": 2
+  "waypoints": [[-1.2900, 36.8200]],
+  "find_alternatives": true
 }
 ```
 
-**Response**
+### Response Example
+
 ```json
 {
   "data": {
     "baseline_route": {
-      "route_id": "baseline",
-      "coordinates": [{"lat": -1.2921, "lng": 36.8219}],
       "distance": 5.2,
       "estimated_time": 12.5,
-      "cost": 2.34,
-      "co2_emissions": 1.15,
-      "algorithm_used": "osrm"
+      "cost": 0.78,
+      "co2_emissions": 0.62
     },
     "optimized_route": {
-      "route_id": "optimized",
-      "coordinates": [{"lat": -1.2921, "lng": 36.8219}],
       "distance": 4.8,
       "estimated_time": 11.2,
-      "cost": 2.16,
-      "co2_emissions": 1.06,
-      "algorithm_used": "astar_gnn",
-      "confidence_score": 0.95
+      "cost": 0.72,
+      "co2_emissions": 0.58
     },
-    "alternative_routes": [],
     "improvements": {
       "distance_saved": 0.4,
       "time_saved": 1.3,
-      "cost_saved": 0.18,
-      "co2_saved": 0.09
-    }
-  },
-  "metadata": {
-    "algorithm_used": "astar_gnn",
-    "processing_time": 245,
-    "request_id": "req_1234567890",
-    "nodes_in_graph": 1523,
-    "edges_in_graph": 3847
-  },
-  "timestamp": "2025-11-18T10:30:00Z"
-}
-```
-
-#### GET /health
-
-Health check endpoint for monitoring.
-
-**Response**
-```json
-{
-  "data": {
-    "status": "healthy",
-    "timestamp": "2025-11-18T10:30:00Z",
-    "version": "1.0.0",
-    "services": {
-      "database": "operational",
-      "authentication": "authenticated",
-      "api": "operational"
+      "cost_saved": 0.06,
+      "co2_saved": 0.04
+    },
+    "traffic_info": {
+      "traffic_level": 1.1,
+      "traffic_description": "Moderate traffic",
+      "area_type": "commercial"
     }
   }
 }
 ```
 
-#### GET /profile
+---
 
-Retrieve authenticated user's profile.
+## 💰 Pricing Tiers
 
-#### PUT /profile
+| Tier | Price | Requests/Month | Rate Limit | Best For |
+|------|-------|----------------|------------|----------|
+| **Trial** | Free | 100 | 5/min | Testing & Development |
+| **Starter** | $29/mo | 1,000 | 10/min | Small Fleets |
+| **Professional** | $199/mo | 10,000 | 50/min | Growing Businesses |
+| **Enterprise** | $999/mo | 100,000 | 200/min | Large Operations |
 
-Update user profile information.
-
-#### GET /keys
-
-List all API keys for authenticated user.
-
-#### POST /keys
-
-Generate new API key (requires paid subscription).
-
-#### GET /usage
-
-Retrieve usage statistics and analytics.
-
-#### GET /billing/subscription
-
-Get current subscription details and usage.
-
-#### POST /billing/upgrade
-
-Upgrade subscription tier.
+> **Overage**: $0.01 - $0.005 per request (tier-dependent)
 
 ---
 
-## Deployment Architecture
+## 🔐 Security & Authentication
 
-### Vercel Serverless Configuration
+### Authentication Flow
 
-**vercel.json**
+```mermaid
+flowchart TD
+    A[Request] --> B{Has Auth?}
+    B -->|No| C[401 Unauthorized]
+    B -->|Yes| D{Token Type}
+    
+    D -->|Bearer| E[Verify JWT]
+    D -->|API Key| F[Hash & Lookup]
+    
+    E --> G{Valid?}
+    F --> G
+    
+    G -->|No| C
+    G -->|Yes| H[Get User Context]
+    H --> I[Check Subscription]
+    I --> J[Check Rate Limit]
+    J --> K[Process Request]
+    
+    style C fill:#ffe1e1
+    style K fill:#e1ffe1
+```
+
+### Best Practices
+
+- ✅ Store API keys in environment variables
+- ✅ Use HTTPS for all requests
+- ✅ Rotate keys regularly
+- ✅ Implement exponential backoff for rate limits
+- ✅ Never expose keys in client-side code
+
+---
+
+## 🧪 Testing
+
+### Postman Setup
+
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: sk_live_your_key_here
+```
+
+**Body:**
+```json
+{
+  "origin": [-1.2921, 36.8219],
+  "destination": [-1.2864, 36.8172],
+  "vehicle_type": "car",
+  "optimize_for": "time"
+}
+```
+
+### Error Codes
+
+| Code | Meaning | Solution |
+|------|---------|----------|
+| 401 | Unauthorized | Check API key/token |
+| 400 | Bad Request | Verify JSON format |
+| 429 | Rate Limit | Wait or upgrade tier |
+| 500 | Server Error | Check request ID in logs |
+
+---
+
+## 📁 Project Structure
+
+```
+swift_route/
+├── api/
+│   ├── index.js                 # Node.js API Gateway
+│   └── v1/optimize-route/
+│       └── main.py              # Python Route Optimizer
+├── lib/gnn/
+│   ├── optimizer/
+│   │   ├── enhanced_optimizer.py
+│   │   └── traffic_analyzer.py
+│   ├── models/vehicle.py
+│   └── network/osrm_client.py
+├── src/
+│   ├── components/              # React Components
+│   ├── pages/                   # Dashboard Pages
+│   ├── hooks/                   # Custom Hooks
+│   └── lib/                     # Utilities
+├── supabase/migrations/         # Database Schema
+└── docs/                        # Documentation
+```
+
+---
+
+## 🚢 Deployment
+
+### Vercel Configuration
+
 ```json
 {
   "functions": {
@@ -425,290 +406,90 @@ Upgrade subscription tier.
       "memory": 1024,
       "maxDuration": 10
     }
-  },
-  "rewrites": [
-    {
-      "source": "/api/v1/optimize-route/(.*)",
-      "destination": "/api/v1/optimize-route/main.py"
-    },
-    {
-      "source": "/api/v1/:path*",
-      "destination": "/api/index.js"
-    },
-    {
-      "source": "/((?!api).*)",
-      "destination": "/index.html"
-    }
-  ]
+  }
 }
 ```
 
 ### Environment Variables
 
-Required environment variables for deployment:
-
-**Supabase Configuration**
-- `SUPABASE_URL`: Supabase project URL
-- `SUPABASE_ANON_KEY`: Public anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY`: Service role key (server-side only)
-- `VITE_SUPABASE_URL`: Frontend Supabase URL
-- `VITE_SUPABASE_PUBLISHABLE_KEY`: Frontend public key
-
-**Database Configuration**
-- `DATABASE_URL`: PostgreSQL connection string
-
-**Stripe Configuration**
-- `STRIPE_SECRET_KEY`: Stripe secret key (server-side)
-- `STRIPE_PUBLISHABLE_KEY`: Stripe publishable key
-- `VITE_STRIPE_PUBLISHABLE_KEY`: Frontend Stripe key
-- `STRIPE_PRICE_STARTER`: Price ID for Starter tier
-- `STRIPE_PRICE_PROFESSIONAL`: Price ID for Professional tier
-- `STRIPE_PRICE_ENTERPRISE`: Price ID for Enterprise tier
-
-### Deployment Process
-
-1. **Build Frontend**
-   ```bash
-   npm run build
-   ```
-
-2. **Deploy to Vercel**
-   ```bash
-   vercel --prod
-   ```
-
-3. **Configure Environment Variables**
-   - Set all required environment variables in Vercel dashboard
-   - Ensure Supabase and Stripe credentials are configured
-
-4. **Verify Deployment**
-   - Test health endpoint: `GET /api/v1/health`
-   - Verify authentication flow
-   - Test route optimization endpoint
-
----
-
-## Security & Authentication
-
-### Authentication Methods
-
-1. **Bearer Token Authentication** (Dashboard Users)
-   - JWT tokens issued by Supabase Auth
-   - Automatic token refresh
-   - Session management via Supabase client
-
-2. **API Key Authentication** (B2B Clients)
-   - SHA-256 hashed keys stored in database
-   - Key prefix for identification (e.g., `sk_live_...`)
-   - Per-key usage tracking and rate limiting
-
-### Security Measures
-
-- **HTTPS Only**: All traffic encrypted with TLS 1.3
-- **CORS Configuration**: Restricted origins for API access
-- **Rate Limiting**: Tier-based request limits enforced
-- **SQL Injection Prevention**: Parameterized queries via Supabase client
-- **XSS Protection**: React's built-in escaping and Content Security Policy
-- **API Key Hashing**: Keys never stored in plaintext
-- **Environment Variable Protection**: Sensitive credentials in environment variables only
-
-### Authorization Flow
-
-```
-Request → API Gateway
-    ↓
-Extract Auth Header (Bearer or X-API-Key)
-    ↓
-Validate Credentials
-    ├─ Bearer Token → Supabase Auth Verification
-    └─ API Key → Hash Lookup & Status Check
-    ↓
-Retrieve User Context
-    ↓
-Check Subscription & Rate Limits
-    ↓
-Authorize Request
-    ↓
-Process & Log
-```
-
----
-
-## Testing Strategy
-
-### Unit Testing
-
-**Frontend Components**
-- Component rendering tests
-- User interaction tests
-- State management tests
-- Hook behavior tests
-
-**Backend Functions**
-- API endpoint logic tests
-- Authentication validation tests
-- Database query tests
-- Error handling tests
-
-### Integration Testing
-
-**API Flow Tests**
 ```bash
-# Test route optimization flow
-curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: <test_api_key>" \
-  -d '{
-    "origin": [-1.2921, 36.8219],
-    "destination": [-1.2864, 36.8172],
-    "vehicle_type": "car",
-    "optimize_for": "time"
-  }'
-```
-
-**Authentication Tests**
-- Bearer token validation
-- API key validation
-- Invalid credential handling
-- Rate limit enforcement
-
-**Billing Tests**
-- Subscription creation
-- Usage tracking
-- Overage calculation
-- Stripe webhook processing
-
-### End-to-End Testing
-
-**Dashboard Flow**
-1. User registration
-2. Email verification
-3. Dashboard access
-4. API key generation
-5. Route optimization
-6. Usage analytics review
-7. Subscription upgrade
-
-**API Client Flow**
-1. API key acquisition
-2. Route optimization request
-3. Response validation
-4. Error handling
-5. Rate limit testing
-
-### Test Data
-
-**Mock Coordinates**
-```json
-{
-  "nairobi_cbd": [-1.2921, 36.8219],
-  "westlands": [-1.2864, 36.8172],
-  "karen": [-1.3197, 36.7078],
-  "gigiri": [-1.2333, 36.8000]
-}
-```
-
-**Test API Keys**
-```
-Trial: sk_test_trial_mock_key_12345
-Starter: sk_test_starter_mock_key_67890
-Professional: sk_test_pro_mock_key_abcde
-```
-
-**Stripe Test Cards**
-```
-Success: 4242 4242 4242 4242
-Decline: 4000 0000 0000 0002
-Requires Auth: 4000 0025 0000 3155
-```
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 22+ and npm 10+
-- Python 3.11+
-- Supabase account
-- Stripe account (for billing features)
-- Vercel account (for deployment)
-
-### Local Development Setup
-
-1. **Clone Repository**
-   ```bash
-   git clone <repository_url>
-   cd swift_route
-   ```
-
-2. **Install Dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Configure Environment**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your credentials
-   ```
-
-4. **Run Development Server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Access Application**
-   ```
-   Frontend: http://localhost:8080
-   API: http://localhost:8080/api/v1
-   ```
-
-### Production Deployment
-
-See [Deployment Architecture](#deployment-architecture) section for detailed deployment instructions.
-
----
-
-## Environment Configuration
-
-### Required Variables
-
-Create a `.env` file with the following structure (use mock values for development):
-
-```bash
-# Supabase Configuration
+# Supabase
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_ANON_KEY=your_anon_key_here
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your_anon_key_here
+SUPABASE_ANON_KEY=your_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_key
 
-# Database Configuration
-DATABASE_URL=postgresql://user:password@host:5432/database
+# Stripe
+STRIPE_SECRET_KEY=sk_test_your_key
+STRIPE_PUBLISHABLE_KEY=pk_test_your_key
 
-# Stripe Configuration
-STRIPE_SECRET_KEY=sk_test_mock_secret_key
-STRIPE_PUBLISHABLE_KEY=pk_test_mock_publishable_key
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_mock_publishable_key
-STRIPE_PRICE_STARTER=price_mock_starter_id
-STRIPE_PRICE_PROFESSIONAL=price_mock_professional_id
-STRIPE_PRICE_ENTERPRISE=price_mock_enterprise_id
-
-# Environment
-NODE_ENV=development
+# Database
+DATABASE_URL=postgresql://user:pass@host:5432/db
 ```
 
-**Note**: Never commit actual credentials to version control. Use environment-specific configuration management for production deployments.
+### Deploy Command
+
+```bash
+vercel --prod
+```
 
 ---
 
-## License
+## 🌍 UN SDG 11 Impact
 
-Proprietary - All rights reserved
+### Target 11.2: Sustainable Transport
+- ✅ 15-30% reduction in operational costs
+- ✅ Accurate ETAs in data-scarce regions
+- ✅ Enhanced accessibility through reliable routing
+
+### Target 11.6: Environmental Impact
+- ✅ Verified CO₂ reduction reports
+- ✅ 20%+ reduction in fleet mileage
+- ✅ Lower PM2.5 & PM10 emissions
 
 ---
 
-**Last Updated**: November 18, 2025  
-**Version**: 1.0.0  
-**Deployment**: [https://swift-route-liard.vercel.app/](https://swift-route-liard.vercel.app/)
+## 📈 Performance Metrics
+
+| Metric | Value |
+|--------|-------|
+| API Response Time | < 1 second |
+| Uptime SLA | 99.9% |
+| Cost Reduction | 20-30% |
+| Emissions Reduction | 25%+ |
+| Global Coverage | ✅ Worldwide |
+
+---
+
+## 🤝 Support
+
+- 📧 **Email**: support@swiftroute.com
+- 📚 **Documentation**: [Dashboard Docs](https://swift-route-liard.vercel.app/dashboard)
+- 🐛 **Issues**: Check Analytics tab for request IDs
+- 💬 **Community**: [GitHub Discussions](#)
+
+---
+
+## 📄 License
+
+**Proprietary** - All rights reserved © 2025 SwiftRoute
+
+---
+
+## 🙏 Acknowledgments
+
+- **OSRM** - Open Source Routing Machine
+- **Supabase** - Backend infrastructure
+- **Vercel** - Serverless deployment
+- **UN SDG 11** - Sustainable cities inspiration
+
+---
+
+<div align="center">
+
+**Built with ❤️ for sustainable urban logistics**
+
+[Get Started](https://swift-route-liard.vercel.app/) • [View Docs](https://swift-route-liard.vercel.app/dashboard) • [API Reference](https://swift-route-liard.vercel.app/dashboard)
+
+*Last Updated: November 18, 2025 • Version 1.0.0*
+
+</div>
