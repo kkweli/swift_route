@@ -752,9 +752,31 @@ export default async function handler(req, res) {
           body: JSON.stringify(req.body)
         });
 
-        const responseData = await pythonResponse.json();
+        const rawText = await pythonResponse.text();
+        let responseData;
+        try {
+          responseData = JSON.parse(rawText);
+        } catch (parseErr) {
+          // Python handler returned non-JSON (likely an HTML error page). Truncate and mask for logs.
+          const snippet = rawText ? rawText.substring(0, 2000) : '';
+          console.error('Python handler returned non-JSON response', { status: pythonResponse.status, snippet: snippet.slice(0, 500) });
+          responseData = {
+            error: {
+              code: 'INVALID_PYTHON_RESPONSE',
+              message: 'Non-JSON response from python handler',
+              body_snippet: snippet
+            }
+          };
+        }
+
         const responseTime = Date.now() - startTime;
-        const success = pythonResponse.ok;
+        const success = pythonResponse.ok && !responseData.error;
+
+        // If the python handler returned a server error, log a short body snippet for debugging
+        if (!pythonResponse.ok) {
+          const snippet = rawText ? rawText.substring(0, 1000) : '';
+          console.error('Python handler error response', { status: pythonResponse.status, snippet: snippet.slice(0, 500) });
+        }
 
         // Log usage to database (includes api_key_id if using API key auth)
         await supabase
@@ -766,10 +788,10 @@ export default async function handler(req, res) {
             method: 'POST',
             status_code: pythonResponse.status,
             response_time_ms: responseTime,
-            error_code: success ? null : responseData.error?.code
+            error_code: success ? null : (responseData.error && responseData.error.code) || 'PYTHON_ERROR'
           });
 
-        // Return the Python response
+        // Return the Python response (or synthesized error object)
         return res.status(pythonResponse.status).json(responseData);
 
       } catch (error) {
