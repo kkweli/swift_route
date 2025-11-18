@@ -59,7 +59,10 @@ class EnhancedOptimizer:
         # Load lightweight time-of-day multipliers (Option 3)
         self.time_of_day_multiplier = 1.0
         try:
+            # Attempt to fetch multiplier; non-fatal if network unavailable
             self.time_of_day_multiplier = self._fetch_time_of_day_multiplier()
+            # Cache the multiplier to avoid repeated REST calls in high-throughput usage
+            self.cache['time_of_day_multiplier'] = self.time_of_day_multiplier
             print(f"Loaded time-of-day multiplier: {self.time_of_day_multiplier}")
         except Exception as e:
             print("Could not load time-of-day multiplier, using 1.0", e)
@@ -397,23 +400,35 @@ class EnhancedOptimizer:
             return 1.0
 
         hour = datetime.utcnow().hour
-        # Build REST endpoint
-        endpoint = f"{supabase_url.rstrip('/')}/rest/v1/time_of_day_multipliers?hour=eq.{hour}&select=multiplier"
-        req = urllib.request.Request(endpoint, method='GET')
-        req.add_header('apikey', service_key)
-        req.add_header('Authorization', f'Bearer {service_key}')
-        req.add_header('Accept', 'application/json')
+        weekday = datetime.utcnow().weekday()  # 0 = Monday
 
-        try:
-            with urllib.request.urlopen(req, timeout=2) as resp:
-                body = resp.read().decode('utf-8')
-                data = json.loads(body)
-                if isinstance(data, list) and len(data) > 0 and 'multiplier' in data[0]:
-                    return float(data[0]['multiplier'])
-        except urllib.error.HTTPError as he:
-            print('HTTPError fetching multipliers', he.code, he.reason)
-        except Exception as e:
-            print('Error fetching multipliers:', e)
+        # Try weekday+hour granularity first (if table supports `weekday` column)
+        try_queries = [
+            f"{supabase_url.rstrip('/')}/rest/v1/time_of_day_multipliers?weekday=eq.{weekday}&hour=eq.{hour}&select=multiplier",
+            f"{supabase_url.rstrip('/')}/rest/v1/time_of_day_multipliers?hour=eq.{hour}&select=multiplier"
+        ]
+
+        for endpoint in try_queries:
+            req = urllib.request.Request(endpoint, method='GET')
+            req.add_header('apikey', service_key)
+            req.add_header('Authorization', f'Bearer {service_key}')
+            req.add_header('Accept', 'application/json')
+
+            try:
+                with urllib.request.urlopen(req, timeout=2) as resp:
+                    body = resp.read().decode('utf-8')
+                    data = json.loads(body)
+                    if isinstance(data, list) and len(data) > 0 and 'multiplier' in data[0]:
+                        return float(data[0]['multiplier'])
+            except urllib.error.HTTPError as he:
+                # If first query 404s due to missing column, continue to next
+                try:
+                    err_body = he.read().decode('utf-8') if hasattr(he, 'read') else ''
+                except Exception:
+                    err_body = ''
+                print('HTTPError fetching multipliers', he.code, he.reason, err_body)
+            except Exception as e:
+                print('Error fetching multipliers:', e)
 
         return 1.0
     
