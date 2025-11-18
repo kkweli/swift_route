@@ -4,14 +4,86 @@ import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users, ArrowRight, Zap } from 'lucide-react';
+import { Key, BarChart3, LogOut, CreditCard, User, MapPin, Code, Users, ArrowRight, Zap, RefreshCw } from 'lucide-react';
 import { APIKeyManagement } from '@/components/APIKeyManagement';
-import { UsageAnalytics } from '@/components/UsageAnalytics';
 import { BillingDashboard } from '@/components/BillingDashboard';
 import { ProfileManagement } from '@/components/ProfileManagement';
 import { RouteOptimizer } from '@/components/RouteOptimizer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { Logo } from '@/components/Logo';
+import { SubscriptionMetrics } from '@/components/SubscriptionMetrics';
+import { UsageStatistics } from '@/components/UsageStatistics';
+import { APIKeysSummary } from '@/components/APIKeysSummary';
+import { RecentActivity } from '@/components/RecentActivity';
+import { useAnalyticsState } from '@/hooks/useAnalytics';
+
+const AnalyticsTab = () => {
+  const { data, errors, refetch, isLoading } = useAnalyticsState();
+  const navigate = useNavigate();
+
+  const handleManageKeys = () => {
+    // This will be handled by parent Dashboard component
+    const tabsList = document.querySelector('[value="api-keys"]') as HTMLElement;
+    if (tabsList) {
+      tabsList.click();
+    }
+  };
+
+  const handleRefresh = () => {
+    refetch.subscription();
+    refetch.usage();
+    refetch.apiKeys();
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Header with Refresh Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-2xl font-bold">Analytics Dashboard</h3>
+          <p className="text-muted-foreground">Monitor your API usage and subscription</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={isLoading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
+      </div>
+
+      {/* Top Row: Subscription and Usage */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <SubscriptionMetrics
+          subscription={data.subscription}
+          isLoading={isLoading}
+          error={errors.subscription}
+          onRetry={refetch.subscription}
+        />
+        <UsageStatistics
+          usage={data.usage}
+          isLoading={isLoading}
+          error={errors.usage}
+          onRetry={refetch.usage}
+        />
+      </div>
+
+      {/* Bottom Row: API Keys and Recent Activity */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <APIKeysSummary
+          apiKeys={data.apiKeys}
+          isLoading={isLoading}
+          error={errors.apiKeys}
+          onManageKeys={handleManageKeys}
+          onRetry={refetch.apiKeys}
+        />
+        <RecentActivity
+          logs={data.usage?.recent_logs || []}
+          isLoading={isLoading}
+          error={errors.usage}
+          onRetry={refetch.usage}
+        />
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const { user, loading, signOut } = useAuth();
@@ -64,108 +136,22 @@ const Dashboard = () => {
           </p>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
+        <Tabs defaultValue="analytics" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6">
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="route-optimizer">Route Optimizer</TabsTrigger>
             <TabsTrigger value="api-keys">API Keys</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="billing">Billing</TabsTrigger>
             <TabsTrigger value="docs">Docs</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* Quick Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">API Requests</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">This month</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Active Keys</CardTitle>
-                  <Key className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">API keys</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">-</div>
-                  <p className="text-xs text-muted-foreground">Last 30 days</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Current Plan</CardTitle>
-                  <CreditCard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold capitalize">-</div>
-                  <p className="text-xs text-muted-foreground">Subscription</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Info Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>SwiftRoute B2B API Platform</CardTitle>
-                <CardDescription>
-                  Advanced route optimization API powered by Graph Neural Networks
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Code className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold mb-1">RESTful API</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Easy integration with comprehensive authentication and rate limiting
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 text-primary mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold mb-1">Multi-Tier Billing</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Starter, Professional, and Enterprise tiers with pay-as-you-go pricing
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <BarChart3 className="h-5 w-5 text-accent mt-0.5" />
-                  <div>
-                    <h3 className="font-semibold mb-1">GNN-Enhanced Optimization</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Superior route optimization using Graph Neural Networks
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value="analytics" className="space-y-6">
+            <AnalyticsTab />
           </TabsContent>
 
           <TabsContent value="api-keys">
             <APIKeyManagement />
-          </TabsContent>
-
-          <TabsContent value="analytics">
-            <UsageAnalytics />
           </TabsContent>
 
           <TabsContent value="billing">
