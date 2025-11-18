@@ -281,8 +281,7 @@ export default async function handler(req, res) {
           .from('user_profiles')
           .upsert({
             id: user.id,
-            ...updates,
-            updated_at: new Date().toISOString()
+            ...updates
           })
           .select()
           .single();
@@ -463,8 +462,7 @@ export default async function handler(req, res) {
             price_per_request: config.price,
             stripe_customer_id: stripe_customer_id || null,
             stripe_subscription_id: stripe_subscription_id || null,
-            payment_status: stripe_subscription_id ? 'active' : 'pending',
-            updated_at: new Date().toISOString()
+            payment_status: stripe_subscription_id ? 'active' : 'pending'
           })
           .eq('user_id', user.id)
           .select()
@@ -596,7 +594,7 @@ export default async function handler(req, res) {
 
         const { data: updatedKey, error: updateError } = await supabase
           .from('api_keys')
-          .update({ key_hash: newKeyHash, key_prefix: newKeyPrefix, updated_at: new Date().toISOString() })
+          .update({ key_hash: newKeyHash, key_prefix: newKeyPrefix })
           .eq('id', id)
           .select()
           .single();
@@ -643,7 +641,7 @@ export default async function handler(req, res) {
         try {
           const { data: revoked, error: revokeError } = await supabase
             .from('api_keys')
-            .update({ status: 'revoked', updated_at: new Date().toISOString() })
+            .update({ status: 'revoked' })
             .eq('id', keyId)
             .select()
             .single();
