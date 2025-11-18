@@ -29,13 +29,15 @@ from .enhanced_optimizer import EnhancedOptimizer
 
 @dataclass
 class OptimizationRequest:
-    """Route optimization request"""
+    """Route optimization request (V2 with factor)"""
     origin: Tuple[float, float]  # (lat, lng)
     destination: Tuple[float, float]
     vehicle_profile: VehicleProfile
     optimization_criteria: str = 'time'  # 'time', 'distance', 'cost', 'emissions'
     find_alternatives: bool = True
     num_alternatives: int = 2
+    factor: float = 1.0  # bias factor: <1 favors shorter/faster, >1 allows longer/scenic
+    include_explanation: bool = False  # whether to request LLM explanation
 
 
 class RouteOptimizationEngine:
