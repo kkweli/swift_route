@@ -103,7 +103,11 @@ export class RouteAPIClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          // Send both Authorization and X-API-Key to support both bearer tokens
+          // and legacy API-key clients. The gateway will prefer Bearer as a
+          // dashboard session token, and `X-API-Key` will be used for B2B keys.
           'Authorization': `Bearer ${this.apiKey}`,
+          'X-API-Key': this.apiKey,
         },
         body: JSON.stringify(request),
       });

@@ -42,6 +42,17 @@ function getSanitizedHeaders(req) {
   return headers;
 }
 
+// Helper to add a timeout around async operations (useful for Supabase calls)
+async function withTimeout(promise, ms = 5000) {
+  let timer;
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('TIMEOUT')), ms);
+    })
+  ]).finally(() => clearTimeout(timer));
+}
+
 export default async function handler(req, res) {
   // Enable CORS for all endpoints
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -108,12 +119,18 @@ export default async function handler(req, res) {
       
       if (authHeader && authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace('Bearer ', '');
-        const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-        
-        if (authError) {
-          authResult = { success: false, method: 'bearer_token', error: authError.message };
-        } else if (authUser) {
-          authResult = { success: true, method: 'bearer_token', user_id: authUser.id, email: authUser.email };
+        try {
+          const result = await withTimeout(supabase.auth.getUser(token), 5000);
+          const authUser = result?.data?.user;
+          const authError = result?.error;
+
+          if (authError) {
+            authResult = { success: false, method: 'bearer_token', error: authError.message };
+          } else if (authUser) {
+            authResult = { success: true, method: 'bearer_token', user_id: authUser.id, email: authUser.email };
+          }
+        } catch (e) {
+          authResult = { success: false, method: 'bearer_token', error: e.message || 'auth timeout' };
         }
       }
       
@@ -175,46 +192,82 @@ export default async function handler(req, res) {
     // Try Bearer token authentication first (dashboard users)
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.replace('Bearer ', '');
-      const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
-      
-      if (!authError && authUser) {
-        user = authUser;
+      try {
+        const result = await withTimeout(supabase.auth.getUser(token), 5000);
+        const authUser = result?.data?.user;
+        const authError = result?.error;
+
+        if (authError) {
+          console.warn('supabase.auth.getUser error', { message: authError.message });
+        }
+
+        if (authUser) {
+          user = authUser;
+        }
+      } catch (e) {
+        console.warn('supabase.auth.getUser timeout or error', { message: e?.message || e });
       }
     }
     
     // Try API key authentication (B2B clients)
     if (!user && apiKeyHeader) {
       const keyHash = hashAPIKey(apiKeyHeader);
+      try {
+        const keyResult = await withTimeout(
+          supabase
+            .from('api_keys')
+            .select('id, user_id, status, request_count')
+            .eq('key_hash', keyHash)
+            .eq('status', 'active')
+            .single(),
+          5000
+        );
 
-      const { data: apiKey, error: keyError } = await supabase
-        .from('api_keys')
-        .select('id, user_id, status, request_count')
-        .eq('key_hash', keyHash)
-        .eq('status', 'active')
-        .single();
+        const apiKey = keyResult?.data;
+        const keyError = keyResult?.error;
 
-      if (!keyError && apiKey) {
-        // Get user associated with API key
-        const { data: { user: keyUser }, error: userError } = await supabase.auth.admin.getUserById(apiKey.user_id);
+        if (keyError) {
+          console.warn('api_keys lookup error', { message: keyError.message });
+        }
 
-        if (!userError && keyUser) {
-          user = keyUser;
-          apiKeyId = apiKey.id;
-
-          // Update API key usage stats: set last_used and increment request_count safely
+        if (apiKey) {
+          // Get user associated with API key
           try {
-            const newCount = (apiKey.request_count || 0) + 1;
-            await supabase
-              .from('api_keys')
-              .update({
-                last_used: new Date().toISOString(),
-                request_count: newCount
-              })
-              .eq('id', apiKey.id);
+            const userResult = await withTimeout(supabase.auth.admin.getUserById(apiKey.user_id), 5000);
+            const keyUser = userResult?.data?.user;
+            const userError = userResult?.error;
+
+            if (userError) {
+              console.warn('auth.admin.getUserById error', { message: userError.message, user_id: apiKey.user_id });
+            }
+
+            if (keyUser) {
+              user = keyUser;
+              apiKeyId = apiKey.id;
+
+              // Update API key usage stats: set last_used and increment request_count safely
+              try {
+                const newCount = (apiKey.request_count || 0) + 1;
+                await withTimeout(
+                  supabase
+                    .from('api_keys')
+                    .update({
+                      last_used: new Date().toISOString(),
+                      request_count: newCount
+                    })
+                    .eq('id', apiKey.id),
+                  5000
+                );
+              } catch (e) {
+                console.warn('Failed to update api_keys usage stats', e?.message || e);
+              }
+            }
           } catch (e) {
-            console.warn('Failed to update api_keys usage stats', e?.message || e);
+            console.warn('auth.admin.getUserById timeout or error', { message: e?.message || e, user_id: apiKey.user_id });
           }
         }
+      } catch (e) {
+        console.warn('api_keys lookup timeout or error', { message: e?.message || e });
       }
     }
     // If authentication failed for both methods, return 401 early to avoid handlers dereferencing `user`
@@ -485,21 +538,35 @@ export default async function handler(req, res) {
     if (path.includes('/keys')) {
       // GET /keys - List API keys
       if (req.method === 'GET') {
-        const { data: keys, error } = await supabase
-          .from('api_keys')
-          .select('id, key_prefix, name, created_at, last_used, request_count, status')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false });
+        try {
+          const keysResult = await withTimeout(
+            supabase
+              .from('api_keys')
+              .select('id, key_prefix, name, created_at, last_used, request_count, status')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false }),
+            6000
+          );
 
-        if (error) throw error;
+          const keys = keysResult?.data;
+          const keysError = keysResult?.error;
 
-        return res.status(200).json({
-          data: keys,
-          metadata: {
-            total: keys.length,
-            active: keys.filter(k => k.status === 'active').length
+          if (keysError) {
+            console.warn('Failed fetching api_keys', { message: keysError.message, user_id: user.id });
+            throw keysError;
           }
-        });
+
+          return res.status(200).json({
+            data: keys,
+            metadata: {
+              total: keys.length,
+              active: keys.filter(k => k.status === 'active').length
+            }
+          });
+        } catch (e) {
+          console.warn('api_keys query failed or timed out', { message: e?.message || e, user_id: user.id });
+          return res.status(502).json({ error: { code: 'UPSTREAM_TIMEOUT', message: 'Failed to fetch API keys in time' } });
+        }
       }
 
       // POST /keys - Create API key
