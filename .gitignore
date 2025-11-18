@@ -92,3 +92,8 @@ add-stripe-env.ps1
 STRIPE_SETUP.md
 STRIPE_IMPLEMENTATION_GUIDE.md
 .gitignore
+.history/
+.kiro/
+.qodo/
+dist/
+.vercel/
