@@ -350,9 +350,11 @@ export function RouteOptimizer() {
             vehicleType: parameters.vehicleType,
             optimizeFor: parameters.optimizeFor,
           });
+          const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
+          const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
           const insights = await fetchLLMInsights(prompt, {
-            timeoutMs: Number((import.meta as any).env?.VITE_GEMINI_TIMEOUT_MS || 2500),
-            model: ((import.meta as any).env?.VITE_GEMINI_MODEL as string) || 'gemini-1.5-flash',
+            timeoutMs: Number(timeoutEnv ?? '2500'),
+            model: modelEnv || 'gemini-1.5-flash',
             temperature: 0.4,
             maxOutputTokens: 260,
           });

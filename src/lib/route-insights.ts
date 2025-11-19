@@ -145,9 +145,9 @@ export async function fetchLLMInsights(
         console.warn('LLM request failed:', resp.status, resp.statusText, 'model:', model);
         return null;
       }
-      const data = (await resp.json()) as any;
+      const data = (await resp.json()) as GeminiResponse;
       const text = data?.candidates?.[0]?.content?.parts
-        ?.map((p: any) => p?.text)
+        ?.map((p: GeminiContentPart) => p?.text)
         .filter(Boolean)
         .join('') || null;
       return (typeof text === 'string' && text.trim().length > 0) ? text.trim() : null;
