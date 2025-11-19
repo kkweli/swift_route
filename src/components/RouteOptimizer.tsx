@@ -355,10 +355,8 @@ export function RouteOptimizer() {
         baselineRouteCount: response.data.baseline_route?.coordinates?.length,
         optimizedRouteCount: response.data.optimized_route?.coordinates?.length,
         alternativeRoutesCount: response.data.alternative_routes?.length,
-        alternativeCoordinates: response.data.alternative_routes?.map((r: RouteResult, i: number) => ({
-          alt: i,
-          count: r.coordinates?.length
-        }))
+        baselineCoords: response.data.baseline_route?.coordinates?.slice(0, 3),
+        optimizedCoords: response.data.optimized_route?.coordinates?.slice(0, 3)
       });
 
       // Update subscription data - decrement requests_remaining locally
@@ -420,8 +418,8 @@ export function RouteOptimizer() {
         const context = await fetchLLMInsights(contextPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),
           model: modelEnv || 'gemini-1.5-flash',
-          temperature: 0.4,
-          maxOutputTokens: 180,
+          temperature: 0.3,
+          maxOutputTokens: 450,
         });
         if (context) setLlmContextMarkdown(context);
       } catch (e) {
@@ -474,6 +472,137 @@ export function RouteOptimizer() {
         <Select onValueChange={handleLoadExample}>
           <SelectTrigger className="w-64">
             <SelectValue placeholder="Load example route..." />
+          </SelectTrigger>
+          <SelectContent>
+            {EXAMPLE_ROUTES.map((example) => (
+              <SelectItem key={example.id} value={example.id}>
+                <div className="flex flex-col">
+                  <span className="font-medium">{example.name}</span>
+                  <span className="text-xs text-muted-foreground">{example.industry}</span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Badge variant="secondary" className="ml-auto">
+          {EXAMPLE_ROUTES.length} examples available
+        </Badge>
+      </div>
+
+      {/* Main Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Panel - Input Controls */}
+        <div className="lg:col-span-1">
+          <RouteInputPanel
+            origin={origin}
+            destination={destination}
+            waypoints={waypoints}
+            parameters={parameters}
+            subscription={subscription}
+            isOptimizing={isOptimizing}
+            onOriginChange={setOrigin}
+            onDestinationChange={setDestination}
+            onAddWaypoint={handleAddWaypoint}
+            onRemoveWaypoint={handleRemoveWaypoint}
+            onParametersChange={handleParametersChange}
+            onOptimize={handleOptimize}
+          />
+        </div>
+
+        {/* Right Panel - Map */}
+        <div className="lg:col-span-2">
+          <div className="h-[600px] rounded-lg overflow-hidden shadow-lg">
+            <InteractiveMap
+              origin={origin}
+              destination={destination}
+              waypoints={waypoints}
+              baselineRoute={baselineRoute?.coordinates || null}
+              optimizedRoute={optimizedRoute?.coordinates || null}
+              alternativeRoutes={alternativeRoutes?.map(r => r.coordinates) || []}
+              onMapClick={handleMapClick}
+              selectedRoute={selectedRoute}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Results Section */}
+      {(baselineRoute || optimizedRoute) && (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Metrics Comparison */}
+            <MetricsComparison
+              baselineRoute={baselineRoute}
+              optimizedRoute={optimizedRoute}
+              alternativeRoutes={alternativeRoutes}
+              llmExplanation={llmExplanation}
+              isTrialUser={subscription.tier === 'trial'}
+              selectedRoute={selectedRoute}
+              onSelectedRouteChange={setSelectedRoute}
+            />
+
+            {/* JSON Output */}
+            <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
+          </div>
+
+          {/* AI Route Analysis */}
+          <div className="mt-6 p-4 border rounded-lg bg-card">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">AI Route Analysis</h3>
+              <div className="flex items-center gap-2">
+                {isInsightsLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+                <Button variant="secondary" onClick={() => setShowInsights(!showInsights)}>
+                  {showInsights ? 'Hide' : 'Show'} Insights
+                </Button>
+              </div>
+            </div>
+            {showInsights && (
+              <div className="prose prose-sm dark:prose-invert mt-3">
+                {llmExplanation ? (
+                  <ReactMarkdown>{llmExplanation}</ReactMarkdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Insights will appear here after optimization.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Route Context */}
+          <div className="mt-4 p-4 border rounded-lg bg-card">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Route Context</h3>
+              <div className="flex items-center gap-2">
+                {isContextLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+                <Button variant="secondary" onClick={() => setShowContext(!showContext)}>
+                  {showContext ? 'Hide' : 'Show'} Context
+                </Button>
+              </div>
+            </div>
+            {showContext && (
+              <div className="prose prose-sm dark:prose-invert mt-3">
+                {llmContextMarkdown ? (
+                  <ReactMarkdown>{llmContextMarkdown}</ReactMarkdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Traffic and amenities context will appear here.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Help Text */}
+      {!origin && !destination && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">
+            Click on the map to set your origin and destination, then click "Optimize Route" to see
+            the results.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}lectValue placeholder="Load example route..." />
           </SelectTrigger>
           <SelectContent>
             {EXAMPLE_ROUTES.map((example) => (

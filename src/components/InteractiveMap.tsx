@@ -185,27 +185,27 @@ export function InteractiveMap({
           </Marker>
         ))}
 
-        {/* Baseline route */}
+        {/* Baseline route - always visible with dashed line */}
         {baselineRoute && baselineRoute.length > 0 && (
           <Polyline
             positions={baselineRoute.map(p => [p.lat, p.lng])}
-            color={selectedRoute === 'baseline' ? '#374151' : '#9CA3AF'}
-            weight={selectedRoute === 'baseline' ? 8 : 3}
-            opacity={selectedRoute === 'baseline' ? 1 : 0.3}
-            dashArray={selectedRoute === 'baseline' ? undefined : '10, 10'}
+            color={selectedRoute === 'baseline' ? '#374151' : '#6B7280'}
+            weight={selectedRoute === 'baseline' ? 6 : 4}
+            opacity={0.8}
+            dashArray="8, 8"
             pathOptions={{
               className: selectedRoute === 'baseline' ? 'selected-route-pulse' : ''
             }}
           />
         )}
 
-        {/* Optimized route */}
+        {/* Optimized route - always visible with solid line */}
         {optimizedRoute && optimizedRoute.length > 0 && (
           <Polyline
             positions={optimizedRoute.map(p => [p.lat, p.lng])}
-            color={selectedRoute === 'optimized' ? '#059669' : '#6EE7B7'}
-            weight={selectedRoute === 'optimized' ? 8 : 3}
-            opacity={selectedRoute === 'optimized' ? 1 : 0.3}
+            color={selectedRoute === 'optimized' ? '#059669' : '#10B981'}
+            weight={selectedRoute === 'optimized' ? 6 : 4}
+            opacity={0.9}
             pathOptions={{
               className: selectedRoute === 'optimized' ? 'selected-route-pulse' : ''
             }}
@@ -234,7 +234,7 @@ export function InteractiveMap({
           <div className="font-semibold mb-2">Route Legend</div>
           {baselineRoute && (
             <div className="flex items-center gap-2 mb-1">
-              <div className="w-8 h-1 bg-gray-500"></div>
+              <div className="w-8 h-1 bg-gray-500 border-dashed border-t-2 border-gray-500"></div>
               <span>Baseline Route</span>
             </div>
           )}

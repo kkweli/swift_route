@@ -172,19 +172,13 @@ export default async function handler(req, res) {
     const authHeader = req.headers.authorization;
     const apiKeyHeader = req.headers['x-api-key'];
     
-    // DEBUG: Log minimal headers (masked) for troubleshooting — avoid printing secrets
-    console.log('=== AUTH DEBUG ===');
-    console.log('Path:', path);
-    console.log('Authorization header:', authHeader ? 'Present' : 'Missing');
-    console.log('X-API-Key header:', apiKeyHeader ? 'Present' : 'Missing');
-    try {
-      console.log('Sanitized headers:', JSON.stringify(getSanitizedHeaders(req), null, 2));
-    } catch (e) {
-      // fall back to safe summary
-      console.log('Headers could not be stringified for debug');
+    // Minimal auth logging for production
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Auth check:', {
+        path: path.split('?')[0],
+        hasAuth: !!(authHeader || apiKeyHeader)
+      });
     }
-    console.log('Server SUPABASE_URL:', !!process.env.SUPABASE_URL ? process.env.SUPABASE_URL.replace(/^(https?:\/\/)/, '') : 'Not configured');
-    console.log('==================');
     
     let user = null;
     let apiKeyId = null;
@@ -270,22 +264,12 @@ export default async function handler(req, res) {
         console.warn('api_keys lookup timeout or error', { message: e?.message || e });
       }
     }
-    // If authentication failed for both methods, return 401 early to avoid handlers dereferencing `user`
+    // If authentication failed for both methods, return 401
     if (!user) {
       return res.status(401).json({
         error: {
           code: 'UNAUTHENTICATED',
           message: 'Authentication required. Provide Authorization: Bearer <token> or X-API-Key: <key>'
-        }
-      });
-    }
-    
-    // If neither authentication method worked, return 401
-    if (!user) {
-      return res.status(401).json({
-        error: { 
-          code: 'UNAUTHORIZED', 
-          message: 'Authorization required. Provide either Bearer token or X-API-Key header.' 
         },
         debug_hint: 'Test your credentials at /api/v1/debug-auth'
       });

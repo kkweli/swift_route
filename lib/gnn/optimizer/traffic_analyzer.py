@@ -200,13 +200,6 @@ class AmenityRecommender:
     def get_relevant_amenities(hour: int, route_duration_minutes: float) -> List[Dict]:
         """
         Get relevant amenities based on time of day and route duration
-        
-        Args:
-            hour: Current hour (0-23)
-            route_duration_minutes: Estimated route duration
-        
-        Returns:
-            List of recommended amenity types with priorities
         """
         recommendations = []
         
@@ -239,27 +232,7 @@ class AmenityRecommender:
                 'reason': 'Dinner options available'
             })
         
-        # Long route recommendations
-        if route_duration_minutes > 60:
-            recommendations.append({
-                'type': 'restroom',
-                'priority': 'medium',
-                'reason': 'Rest stops for long journey'
-            })
-            recommendations.append({
-                'type': 'parking',
-                'priority': 'medium',
-                'reason': 'Parking areas for breaks'
-            })
-        
-        if route_duration_minutes > 180:
-            recommendations.append({
-                'type': 'hotel',
-                'priority': 'medium',
-                'reason': 'Accommodation options for extended travel'
-            })
-        
-        # Emergency services (always low priority unless needed)
+        # Emergency services
         recommendations.append({
             'type': 'hospital',
             'priority': 'low',
@@ -285,6 +258,33 @@ class AmenityRecommender:
             'priority': 'low',
             'reason': 'ATM access along route'
         })
+        
+        return recommendations
+    
+    @staticmethod
+    def get_contextual_amenities(coordinates: List[Tuple[float, float]], vehicle_profile, hour: int) -> List[Dict]:
+        """Get contextual amenities based on route and vehicle type"""
+        recommendations = []
+        
+        # Vehicle-specific amenities
+        if hasattr(vehicle_profile, 'vehicle_type'):
+            vehicle_type = vehicle_profile.vehicle_type.value if hasattr(vehicle_profile.vehicle_type, 'value') else str(vehicle_profile.vehicle_type)
+            
+            if vehicle_type in ['truck', 'van']:
+                recommendations.append({
+                    'type': 'truck_stop',
+                    'priority': 'high',
+                    'reason': 'Commercial vehicle facilities available'
+                })
+            elif vehicle_type == 'motorcycle':
+                recommendations.append({
+                    'type': 'motorcycle_parking',
+                    'priority': 'medium',
+                    'reason': 'Secure motorcycle parking areas'
+                })
+        
+        # Add standard amenities
+        recommendations.extend(AmenityRecommender.get_relevant_amenities(hour, len(coordinates) * 2))
         
         return recommendations
     
