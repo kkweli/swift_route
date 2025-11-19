@@ -31,6 +31,10 @@ try:
         sys.path.insert(0, lib_path)
     print(f"SUCCESS: 'lib' directory added to sys.path: {lib_path}")
     print(f"Updated sys.path: {sys.path}")
+    # Sanitize env variables globally to trim CR/LF without changing semantics
+    for _k in ('SUPABASE_URL','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY','OSRM_BASE_URL','INTERNAL_AUTH_SECRET'):
+        if os.getenv(_k) is not None:
+            os.environ[_k] = _clean_env(_k, os.getenv(_k, ""))
 except Exception as e:
     print(f"ERROR: Failed to modify sys.path: {e}")
 
@@ -173,58 +177,32 @@ class handler(BaseHTTPRequestHandler):
             logging.info(f"Vehicle: {vehicle_type}, Optimization: {optimization}")
 
             engine = RouteOptimizationEngine()
-            result = engine.optimize(request)
+            optimize_timeout_ms = int(os.getenv('OPTIMIZE_TIMEOUT_MS', '8000') or '8000')
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _exec:
+                future = _exec.submit(engine.optimize, request)
+                try:
+                    result = future.result(timeout=max(0.1, optimize_timeout_ms / 1000.0))
+                except concurrent.futures.TimeoutError:
+                    self.send_response(504)
+                    self.send_header('Content-Type', 'application/json')
+                    self.send_header('Access-Control-Allow-Origin', '*')
+                    self.end_headers()
+                    self.wfile.write(json.dumps({
+                        "error": {"code": "TIMEOUT", "message": "Route optimization timed out"},
+                        "timestamp": datetime.utcnow().isoformat() + "Z"
+                    }).encode())
+                    return
 
             if not result:
                 raise Exception("No route found between origin and destination. Check if road network data exists in database.")
 
-            # Optionally produce an LLM explanation (lazy import + safe fallback)
-            if request.include_explanation:
-                # Build a lightweight candidate summary input for the summarizer
-                candidates_input = []
-                primary = result.primary_route
-                candidates_input.append({
-                    'distance': primary.distance_km,
-                    'estimated_time': primary.time_minutes,
-                    'cost': primary.cost_usd,
-                    'co2_emissions': primary.emissions_kg,
-                    'algorithm_used': primary.algorithm_used
-                })
-                for alt in result.alternative_routes:
-                    candidates_input.append({
-                        'distance': alt.distance_km,
-                        'estimated_time': alt.time_minutes,
-                        'cost': alt.cost_usd,
-                        'co2_emissions': alt.emissions_kg,
-                        'algorithm_used': alt.algorithm_used
-                    })
-
-                try:
-                    # Import lazily so handler can start even if LLM package missing
-                    from gnn.llm import summarize_candidates
-                    import concurrent.futures
-                    llm_timeout_ms = int(os.getenv('LLM_SUMMARY_TIMEOUT_MS', '800') or '800')
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _exec:
-                        future = _exec.submit(summarize_candidates, candidates_input)
-                        explanation = future.result(timeout=max(0.1, llm_timeout_ms / 1000.0))
-                except Exception as e:
-                    logging.warning(f"LLM summarization unavailable: {e}")
-                    # Safe deterministic fallback summary (no coordinates, safe text)
-                    if candidates_input:
-                        explanation = " | ".join([
-                            f"{i+1}: {c['distance']:.1f}km/{c['estimated_time']:.1f}m"
-                            for i, c in enumerate(candidates_input)
-                        ])
-                    else:
-                        explanation = "No explanation available"
-            else:
-                explanation = None
+            # LLM insights are decoupled from the API response; generate on the frontend if needed
+            explanation = None
 
             # Format response (include explanation if present)
             response_data = self._format_response(result)
-            if explanation:
-                response_data['metadata']['explanation'] = explanation
-
+            
             # Instrumentation: log optimization request and result to Supabase REST (non-blocking)
             try:
                 self._log_optimization_event(request, result, response_data)
@@ -296,6 +274,10 @@ class handler(BaseHTTPRequestHandler):
         supabase_url = _clean_env('SUPABASE_URL')
         service_key = _clean_env('SUPABASE_SERVICE_ROLE_KEY')
         if not supabase_url or not service_key:
+            return
+        # Skip logging if SUPABASE_URL lacks scheme to avoid invalid URL errors
+        if supabase_url and not supabase_url.lower().startswith('http'):
+            logging.debug("SUPABASE_URL missing scheme; skipping log to avoid invalid URL")
             return
 
         try:
