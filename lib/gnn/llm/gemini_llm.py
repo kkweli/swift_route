@@ -8,7 +8,7 @@ coordinates or PII to external services.
 import os
 import json
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Conditional import for google.generativeai
 try:
