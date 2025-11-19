@@ -25,6 +25,7 @@ import {
 } from '@/lib/route-api';
 import { EXAMPLE_ROUTES, ExampleRoute } from '@/lib/example-routes';
 import { buildInsightsPrompt, fetchLLMInsights } from '@/lib/route-insights';
+import ReactMarkdown from 'react-markdown';
 
 export function RouteOptimizer() {
   const { user } = useAuth();
@@ -49,6 +50,8 @@ export function RouteOptimizer() {
   const [alternativeRoutes, setAlternativeRoutes] = useState<RouteResult[]>([]);
   const [llmExplanation, setLlmExplanation] = useState<string | null>(null);
   const [apiResponse, setApiResponse] = useState<RouteOptimizationResponse | null>(null);
+  const [showInsights, setShowInsights] = useState<boolean>(true);
+  const [isInsightsLoading, setIsInsightsLoading] = useState<boolean>(false);
 
   // UI state
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -343,28 +346,7 @@ export function RouteOptimizer() {
       setLlmExplanation(null); // reset; will populate from client-side LLM
       setSelectedRoute('optimized');
 
-      // Fire-and-forget client-side LLM insights (non-blocking)
-      (async () => {
-        try {
-          const prompt = buildInsightsPrompt(response, {
-            vehicleType: parameters.vehicleType,
-            optimizeFor: parameters.optimizeFor,
-          });
-          const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
-          const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
-          const insights = await fetchLLMInsights(prompt, {
-            timeoutMs: Number(timeoutEnv ?? '2500'),
-            model: modelEnv || 'gemini-1.5-flash',
-            temperature: 0.4,
-            maxOutputTokens: 260,
-          });
-          if (insights) {
-            setLlmExplanation(insights);
-          }
-        } catch (e) {
-          console.warn('Failed to get LLM insights:', e);
-        }
-      })();
+      // Defer LLM insights to debounced effect
 
       // Debug: log the received data
       console.log('🎯 API Response Data:', {
@@ -401,6 +383,49 @@ export function RouteOptimizer() {
       setIsOptimizing(false);
     }
   };
+
+  // Debounced LLM insights generation when response or key parameters change
+  useEffect(() => {
+    if (!apiResponse) return;
+
+    const debounceMsRaw = import.meta.env.VITE_GEMINI_DEBOUNCE_MS as unknown as string | undefined;
+    const debounceMs = Math.max(0, Number(debounceMsRaw ?? '600'));
+    setIsInsightsLoading(true);
+    const tid = setTimeout(async () => {
+      try {
+        const prompt = buildInsightsPrompt(apiResponse, {
+          vehicleType: parameters.vehicleType,
+          optimizeFor: parameters.optimizeFor,
+        });
+        const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
+        const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
+        const insights = await fetchLLMInsights(prompt, {
+          timeoutMs: Number(timeoutEnv ?? '4000'),
+          model: modelEnv || 'gemini-1.5-flash',
+          temperature: 0.4,
+          maxOutputTokens: 180,
+        });
+        if (insights) {
+          setLlmExplanation(insights);
+        }
+      } catch (e) {
+        console.warn('LLM insights debounced call failed:', e);
+      } finally {
+        setIsInsightsLoading(false);
+      }
+    }, debounceMs);
+    return () => clearTimeout(tid);
+  }, [apiResponse, parameters.vehicleType, parameters.optimizeFor]);
+
+  // Helper: summarize amenities by type
+  const summarizeAmenities = useCallback(() => {
+    const amenities = apiResponse?.data?.amenities || [];
+    const counts: Record<string, number> = {};
+    for (const a of amenities) {
+      counts[a.type] = (counts[a.type] || 0) + 1;
+    }
+    return counts;
+  }, [apiResponse]);
 
   // Handle example route loading
   const handleLoadExample = (exampleId: string) => {
@@ -511,6 +536,48 @@ export function RouteOptimizer() {
 
             {/* JSON Output */}
             <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
+          </div>
+
+          {/* AI Route Analysis (toggle + markdown) */}
+          <div className="mt-6 p-4 border rounded-lg bg-card">
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">AI Route Analysis</h3>
+              <div className="flex items-center gap-2">
+                {isInsightsLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+                <Button variant="secondary" onClick={() => setShowInsights(!showInsights)}>
+                  {showInsights ? 'Hide' : 'Show'} Insights
+                </Button>
+              </div>
+            </div>
+            {showInsights && (
+              <div className="prose prose-sm dark:prose-invert mt-3">
+                {llmExplanation ? (
+                  <ReactMarkdown>{llmExplanation}</ReactMarkdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Insights will appear here after optimization.</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Map context: area and nearby amenities summary */}
+          <div className="mt-4 p-4 border rounded-lg bg-card">
+            <h4 className="font-medium mb-2">Map Context</h4>
+            <div className="text-sm text-muted-foreground">
+              <div>Area type: {apiResponse?.data?.traffic_info?.area_type || 'unknown'}</div>
+              <div className="mt-2">Nearby amenities:</div>
+              <ul className="list-disc list-inside">
+                {Object.entries(summarizeAmenities()).length > 0 ? (
+                  Object.entries(summarizeAmenities()).map(([type, count]) => (
+                    <li key={type}>
+                      {type.replace(/_/g, ' ')}: {count}
+                    </li>
+                  ))
+                ) : (
+                  <li>None reported</li>
+                )}
+              </ul>
+            </div>
           </div>
 
           {/* Traffic and Amenity Information */}

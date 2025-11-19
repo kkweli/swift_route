@@ -80,11 +80,11 @@ export function buildInsightsPrompt(
   )} kg CO2.`;
 
   const instructions = `
-Return a short bullet list:
-- Best route and why, aligned to ${opts.optimizeFor || 'time'}
-- Key trade-offs (time vs cost vs emissions)
-- Any caution or heuristics (e.g., traffic, vehicle constraints)
-Avoid repeating numbers excessively. Keep it succinct and practical.`;
+Format strictly as GitHub-flavored Markdown:
+**AI Route Analysis**\n\n- Summary (best route for ${opts.optimizeFor || 'time'} and why)
+- Trade-offs (time vs cost vs emissions)
+- Recommendation (what to pick and when)
+- Heuristic (1 actionable tip for ${opts.vehicleType || 'vehicle'})\n\nRules: No code fences. Keep <= 700 chars. Avoid repeating raw numbers excessively.`;
 
   const prompt = [
     header,
@@ -114,6 +114,20 @@ export interface FetchLLMOptions {
  * Fetch insights from Gemini with strict timeout and a single fast fallback.
  * Returns string on success, or null on failure/timeout/misconfig.
  */
+function normalizeMarkdown(text: string): string {
+  if (!text) return text;
+  let t = text.replace(/\\n/g, '\n'); // unescape newlines
+  if (!/^\s*\*\*AI Route Analysis\*\*/.test(t) && !/^\s*#/.test(t)) {
+    t = `**AI Route Analysis**\n\n${t}`;
+  }
+  t = t
+    .split('\n')
+    .map((line) => line.replace(/^\s*\*\s+/, '- ').replace(/^\s*•\s+/, '- '))
+    .join('\n');
+  t = t.replace(/\n{3,}/g, '\n\n');
+  return t.trim();
+}
+
 export async function fetchLLMInsights(
   prompt: string,
   options: FetchLLMOptions = {}
@@ -153,7 +167,10 @@ export async function fetchLLMInsights(
         ?.map((p: GeminiContentPart) => p?.text)
         .filter(Boolean)
         .join('') || null;
-      return (typeof text === 'string' && text.trim().length > 0) ? text.trim() : null;
+      if (typeof text === 'string' && text.trim().length > 0) {
+        return normalizeMarkdown(text.trim());
+      }
+      return null;
     } catch (err) {
       clearTimeout(id);
       console.warn('LLM request error:', err, 'model:', model);
