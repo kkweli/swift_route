@@ -152,7 +152,6 @@ class handler(BaseHTTPRequestHandler):
             vehicle_type = data.get('vehicle_type', 'car')
             optimization = data.get('optimize_for', 'time')
             factor = float(data.get('factor', 1.0)) if data.get('factor') is not None else 1.0
-            include_explanation = bool(data.get('include_explanation', False))
 
             # Create vehicle profile (fallback if import fails)
             try:
@@ -168,8 +167,7 @@ class handler(BaseHTTPRequestHandler):
                 optimization_criteria=optimization,
                 find_alternatives=data.get('find_alternatives', True),
                 num_alternatives=int(data.get('num_alternatives', 2)),
-                factor=factor,
-                include_explanation=include_explanation
+                factor=factor
             )
 
             # Initialize engine and optimize (restore proper GNN calls)

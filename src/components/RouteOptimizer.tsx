@@ -24,6 +24,7 @@ import {
   RouteAPIError,
 } from '@/lib/route-api';
 import { EXAMPLE_ROUTES, ExampleRoute } from '@/lib/example-routes';
+import { buildInsightsPrompt, fetchLLMInsights } from '@/lib/route-insights';
 
 export function RouteOptimizer() {
   const { user } = useAuth();
@@ -332,7 +333,6 @@ export function RouteOptimizer() {
         optimize_for: parameters.optimizeFor,
         avoid_tolls: parameters.avoidTolls,
         avoid_traffic: parameters.avoidTraffic,
-        include_explanation: true,
         alternatives: 2,
       });
 
@@ -340,13 +340,32 @@ export function RouteOptimizer() {
       setBaselineRoute(response.data.baseline_route);
       setOptimizedRoute(response.data.optimized_route);
       setAlternativeRoutes(response.data.alternative_routes || []);
-      setLlmExplanation(response.metadata?.explanation || null);
+      setLlmExplanation(null); // reset; will populate from client-side LLM
       setSelectedRoute('optimized');
+
+      // Fire-and-forget client-side LLM insights (non-blocking)
+      (async () => {
+        try {
+          const prompt = buildInsightsPrompt(response, {
+            vehicleType: parameters.vehicleType,
+            optimizeFor: parameters.optimizeFor,
+          });
+          const insights = await fetchLLMInsights(prompt, {
+            timeoutMs: 1600,
+            model: 'gemini-1.5-flash',
+            temperature: 0.4,
+            maxOutputTokens: 300,
+          });
+          if (insights) {
+            setLlmExplanation(insights);
+          }
+        } catch (e) {
+          console.warn('Failed to get LLM insights:', e);
+        }
+      })();
 
       // Debug: log the received data
       console.log('🎯 API Response Data:', {
-        hasExplanation: !!response.metadata?.explanation,
-        explanation: response.metadata?.explanation,
         baselineRouteCount: response.data.baseline_route?.coordinates?.length,
         optimizedRouteCount: response.data.optimized_route?.coordinates?.length,
         alternativeRoutesCount: response.data.alternative_routes?.length,

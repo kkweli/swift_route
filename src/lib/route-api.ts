@@ -13,7 +13,6 @@ export interface RouteOptimizationRequest {
   optimize_for?: 'distance' | 'time' | 'cost';
   alternatives?: number;
   factor?: number;
-  include_explanation?: boolean;
   avoid_tolls?: boolean;
   avoid_traffic?: boolean;
 }
@@ -64,7 +63,6 @@ export interface RouteOptimizationResponse {
     request_id: string;
     trial_mode?: boolean;
     upgrade_message?: string;
-    explanation?: string;
   };
   usage: {
     requests_remaining: number;
