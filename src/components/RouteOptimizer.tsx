@@ -8,7 +8,6 @@ import { InteractiveMap, LatLng } from './InteractiveMap';
 import { RouteInputPanel, OptimizationParameters, SubscriptionData } from './RouteInputPanel';
 import { MetricsComparison } from './MetricsComparison';
 import { JSONOutputPanel } from './JSONOutputPanel';
-import { TrafficAmenityInfo } from './TrafficAmenityInfo';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -600,12 +599,7 @@ export function RouteOptimizer() {
             )}
           </div>
 
-          {/* Traffic and Amenity Information */}
-          <TrafficAmenityInfo
-            trafficInfo={apiResponse?.data?.traffic_info}
-            amenities={apiResponse?.data?.amenities}
-          />
-        </>
+                  </>
       )}
 
       {/* Help Text */}
