@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler
 import sys
 import os
 
-configured.
+
 def _clean_env(name: str, default: str = "") -> str:
     val = os.getenv(name, default)
     try:
@@ -34,15 +34,17 @@ try:
 except Exception as e:
     print(f"ERROR: Failed to modify sys.path: {e}")
 
+IMPORTS_OK = True
+IMPORTS_ERROR = None
 try:
     from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
     print("SUCCESS: Imported gnn.optimizer modules")
     from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
     print("SUCCESS: Imported gnn.models modules")
 except Exception as e:
-    print(f"ERROR during gnn imports: {e}")
-    # Re-raise to ensure the function fails clearly if imports are broken
-    raise
+    IMPORTS_OK = False
+    IMPORTS_ERROR = str(e)
+    print(f"ERROR during gnn imports (degraded mode): {e}")
 
 class handler(BaseHTTPRequestHandler):
     """Vercel serverless function handler"""
@@ -59,7 +61,7 @@ class handler(BaseHTTPRequestHandler):
         """Handle GET requests - health check"""
         response_data = {
             "data": {
-                "status": "healthy",
+                "status": "healthy" if IMPORTS_OK else "degraded",
                 "timestamp": datetime.utcnow().isoformat() + "Z",
                 "version": "2.0.0-intelligent",
                 "services": {
@@ -85,6 +87,23 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         """Handle POST requests - route optimization"""
         try:
+            # Fail fast if imports failed to avoid generic Vercel errors
+            if not IMPORTS_OK:
+                error_response = {
+                    "error": {
+                        "code": "DEPENDENCY_IMPORT_ERROR",
+                        "message": "Optimizer dependencies failed to import",
+                        "details": IMPORTS_ERROR
+                    },
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                }
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps(error_response).encode())
+                return
+
             # Check for internal auth token (only for internal calls from Node.js)
             internal_auth = self.headers.get('X-Internal-Auth')
             expected_auth = _clean_env('INTERNAL_AUTH_SECRET', 'internal-secret-key')
@@ -110,7 +129,18 @@ class handler(BaseHTTPRequestHandler):
             # Read request body
             content_length = int(self.headers.get('Content-Length', 0))
             body = self.rfile.read(content_length).decode('utf-8')
-            data = json.loads(body) if body else {}
+            try:
+                data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                self.send_response(400)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.end_headers()
+                self.wfile.write(json.dumps({
+                    "error": {"code": "BAD_REQUEST", "message": "Invalid JSON body"},
+                    "timestamp": datetime.utcnow().isoformat() + "Z"
+                }).encode())
+                return
             
             # Parse request
             origin = tuple(data.get('origin', [-1.2921, 36.8219]))  # Default: Nairobi center
