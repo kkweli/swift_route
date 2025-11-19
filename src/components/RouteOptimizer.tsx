@@ -351,10 +351,10 @@ export function RouteOptimizer() {
             optimizeFor: parameters.optimizeFor,
           });
           const insights = await fetchLLMInsights(prompt, {
-            timeoutMs: 1600,
-            model: 'gemini-1.5-flash',
+            timeoutMs: Number((import.meta as any).env?.VITE_GEMINI_TIMEOUT_MS || 2500),
+            model: ((import.meta as any).env?.VITE_GEMINI_MODEL as string) || 'gemini-1.5-flash',
             temperature: 0.4,
-            maxOutputTokens: 300,
+            maxOutputTokens: 260,
           });
           if (insights) {
             setLlmExplanation(insights);
