@@ -30,8 +30,9 @@ export interface InteractiveMapProps {
   waypoints: LatLng[];
   baselineRoute: LatLng[] | null;
   optimizedRoute: LatLng[] | null;
+  alternativeRoutes?: LatLng[][];
   onMapClick?: (latlng: LatLng) => void;
-  selectedRoute?: 'baseline' | 'optimized' | null;
+  selectedRoute?: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1' | null;
   center?: LatLng;
   zoom?: number;
 }
@@ -83,6 +84,7 @@ export function InteractiveMap({
   waypoints = [],
   baselineRoute,
   optimizedRoute,
+  alternativeRoutes = [],
   onMapClick,
   selectedRoute = null,
   center = { lat: -1.2921, lng: 36.8219 }, // Default to Nairobi, Kenya
@@ -192,6 +194,18 @@ export function InteractiveMap({
             opacity={selectedRoute === 'optimized' ? 1 : 0.6}
           />
         )}
+
+        {/* Alternative routes */}
+        {alternativeRoutes && alternativeRoutes.map((route, index) => (
+          <Polyline
+            key={`alt-${index}`}
+            positions={route.map(p => [p.lat, p.lng])}
+            color={index === 0 ? '#3B82F6' : '#F59E0B'}
+            weight={4}
+            opacity={selectedRoute === `alternative-${index}` ? 1 : 0.5}
+            dashArray="5, 5"
+          />
+        ))}
       </MapContainer>
 
       {/* Map legend */}
@@ -210,6 +224,15 @@ export function InteractiveMap({
               <span>Optimized Route</span>
             </div>
           )}
+          {alternativeRoutes && alternativeRoutes.map((_, index) => (
+            <div key={`legend-alt-${index}`} className="flex items-center gap-2 mt-1">
+              <div
+                className="w-8 h-1"
+                style={{ backgroundColor: index === 0 ? '#3B82F6' : '#F59E0B', borderStyle: 'dashed', borderWidth: '2px 0' }}
+              ></div>
+              <span>Alternative {index + 1}</span>
+            </div>
+          ))}
         </div>
       )}
 

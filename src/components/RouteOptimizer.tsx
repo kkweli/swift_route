@@ -44,11 +44,13 @@ export function RouteOptimizer() {
   // Results state
   const [baselineRoute, setBaselineRoute] = useState<RouteResult | null>(null);
   const [optimizedRoute, setOptimizedRoute] = useState<RouteResult | null>(null);
+  const [alternativeRoutes, setAlternativeRoutes] = useState<RouteResult[]>([]);
+  const [llmExplanation, setLlmExplanation] = useState<string | null>(null);
   const [apiResponse, setApiResponse] = useState<RouteOptimizationResponse | null>(null);
 
   // UI state
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [selectedRoute, setSelectedRoute] = useState<'baseline' | 'optimized' | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<'baseline' | 'optimized' | 'alternative-0' | 'alternative-1' | null>(null);
 
   // Subscription state
   const [subscription, setSubscription] = useState<SubscriptionData>({
@@ -317,6 +319,8 @@ export function RouteOptimizer() {
     setIsOptimizing(true);
     setBaselineRoute(null);
     setOptimizedRoute(null);
+    setAlternativeRoutes([]);
+    setLlmExplanation(null);
     setApiResponse(null);
 
     try {
@@ -335,6 +339,8 @@ export function RouteOptimizer() {
       setApiResponse(response);
       setBaselineRoute(response.data.baseline_route);
       setOptimizedRoute(response.data.optimized_route);
+      setAlternativeRoutes(response.data.alternative_routes || []);
+      setLlmExplanation(response.metadata?.explanation || null);
       setSelectedRoute('optimized');
 
       // Update subscription data - decrement requests_remaining locally
@@ -438,6 +444,7 @@ export function RouteOptimizer() {
               waypoints={waypoints}
               baselineRoute={baselineRoute?.coordinates || null}
               optimizedRoute={optimizedRoute?.coordinates || null}
+              alternativeRoutes={alternativeRoutes.map(r => r.coordinates)}
               onMapClick={handleMapClick}
               selectedRoute={selectedRoute}
             />
@@ -453,7 +460,11 @@ export function RouteOptimizer() {
             <MetricsComparison
               baselineRoute={baselineRoute}
               optimizedRoute={optimizedRoute}
+              alternativeRoutes={alternativeRoutes}
+              llmExplanation={llmExplanation}
               isTrialUser={subscription.tier === 'trial'}
+              selectedRoute={selectedRoute}
+              onSelectedRouteChange={setSelectedRoute}
             />
 
             {/* JSON Output */}

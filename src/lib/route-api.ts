@@ -48,7 +48,7 @@ export interface RouteOptimizationResponse {
   data: {
     baseline_route: RouteResult;
     optimized_route: RouteResult;
-    candidates?: RouteResult[];
+    alternative_routes?: RouteResult[];
     improvements: {
       distance_saved: number;
       time_saved: number;
@@ -64,7 +64,7 @@ export interface RouteOptimizationResponse {
     request_id: string;
     trial_mode?: boolean;
     upgrade_message?: string;
-    explanation?: unknown;
+    explanation?: string;
   };
   usage: {
     requests_remaining: number;

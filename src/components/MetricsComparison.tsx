@@ -6,20 +6,30 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TrendingDown, Clock, DollarSign, Leaf, Route, Zap, ArrowRight } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { TrendingDown, Clock, DollarSign, Leaf, Route, Zap, ArrowRight, BrainCircuit } from 'lucide-react';
 import { RouteResult } from '@/lib/route-api';
 import { useNavigate } from 'react-router-dom';
 
 export interface MetricsComparisonProps {
   baselineRoute: RouteResult | null;
   optimizedRoute: RouteResult | null;
+  alternativeRoutes: RouteResult[];
+  llmExplanation: string | null;
   isTrialUser: boolean;
+  selectedRoute: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1' | null;
+  onSelectedRouteChange: (route: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1') => void;
 }
 
 export function MetricsComparison({
   baselineRoute,
   optimizedRoute,
+  alternativeRoutes,
+  llmExplanation,
   isTrialUser,
+  selectedRoute,
+  onSelectedRouteChange,
 }: MetricsComparisonProps) {
   const navigate = useNavigate();
 
@@ -102,40 +112,83 @@ export function MetricsComparison({
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {metrics.map((metric, index) => {
-            const Icon = metric.icon;
-            const isImprovement = metric.improvement > 0;
+        <div className="space-y-4">
+          {/* Route Selector */}
+          <RadioGroup
+            value={selectedRoute ?? 'optimized'}
+            onValueChange={onSelectedRouteChange}
+            className="grid grid-cols-2 lg:grid-cols-4 gap-2"
+          >
+            <Label htmlFor="r-optimized" className={`flex flex-col items-center justify-center rounded-md border-2 p-3 hover:bg-accent hover:text-accent-foreground ${selectedRoute === 'optimized' ? 'border-primary' : ''}`}>
+              <RadioGroupItem value="optimized" id="r-optimized" className="sr-only" />
+              <div className="font-semibold">Optimized</div>
+              <div className="text-xs text-muted-foreground">{optimizedRoute.distance.toFixed(1)} km / {optimizedRoute.estimated_time.toFixed(1)} min</div>
+            </Label>
+            <Label htmlFor="r-baseline" className={`flex flex-col items-center justify-center rounded-md border-2 p-3 hover:bg-accent hover:text-accent-foreground ${selectedRoute === 'baseline' ? 'border-primary' : ''}`}>
+              <RadioGroupItem value="baseline" id="r-baseline" className="sr-only" />
+              <div className="font-semibold">Baseline</div>
+              <div className="text-xs text-muted-foreground">{baselineRoute.distance.toFixed(1)} km / {baselineRoute.estimated_time.toFixed(1)} min</div>
+            </Label>
+            {alternativeRoutes.map((route, index) => (
+              <Label key={`r-alt-${index}`} htmlFor={`r-alt-${index}`} className={`flex flex-col items-center justify-center rounded-md border-2 p-3 hover:bg-accent hover:text-accent-foreground ${selectedRoute === `alternative-${index}` ? 'border-primary' : ''}`}>
+                <RadioGroupItem value={`alternative-${index}`} id={`r-alt-${index}`} className="sr-only" />
+                <div className="font-semibold">Alternative {index + 1}</div>
+                <div className="text-xs text-muted-foreground">{route.distance.toFixed(1)} km / {route.estimated_time.toFixed(1)} min</div>
+              </Label>
+            ))}
+          </RadioGroup>
 
-            return (
-              <div key={index} className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-4 w-4 ${metric.color}`} />
-                  <span className="font-medium">{metric.label}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded">
-                    <div className="text-xs text-muted-foreground mb-1">Baseline</div>
-                    <div className="font-medium">{metric.baseline}</div>
-                  </div>
-                  <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded">
-                    <div className="text-xs text-muted-foreground mb-1">Optimized</div>
-                    <div className="font-medium">{metric.optimized}</div>
-                  </div>
-                </div>
-                {isImprovement && (
-                  <div className="flex items-center gap-1">
-                    <TrendingDown className="h-3 w-3 text-green-600" />
-                    <span className="text-sm text-green-600 font-medium">
-                      {metric.unit === '%'
-                        ? `${metric.improvement.toFixed(1)}% improvement`
-                        : `${metric.improvement.toFixed(2)} ${metric.unit} saved`}
-                    </span>
-                  </div>
-                )}
+          {/* LLM Explanation */}
+          {llmExplanation && (
+            <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2 mb-2">
+                <BrainCircuit className="h-5 w-5 text-blue-600" />
+                <span className="font-semibold text-blue-900 dark:text-blue-100">
+                  AI Route Analysis
+                </span>
               </div>
-            );
-          })}
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                {llmExplanation}
+              </p>
+            </div>
+          )}
+
+          {/* Metrics Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {metrics.map((metric, index) => {
+              const Icon = metric.icon;
+              const isImprovement = metric.improvement > 0;
+
+              return (
+                <div key={index} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${metric.color}`} />
+                    <span className="font-medium">{metric.label}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded">
+                      <div className="text-xs text-muted-foreground mb-1">Baseline</div>
+                      <div className="font-medium">{metric.baseline}</div>
+                    </div>
+                    <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded">
+                      <div className="text-xs text-muted-foreground mb-1">Optimized</div>
+                      <div className="font-medium">{metric.optimized}</div>
+                    </div>
+                  </div>
+                  {isImprovement && (
+                    <div className="flex items-center gap-1">
+                      <TrendingDown className="h-3 w-3 text-green-600" />
+                      <span className="text-sm text-green-600 font-medium">
+                        {metric.unit === '%'
+                          ? `${metric.improvement.toFixed(1)}% improvement`
+                          : `${metric.improvement.toFixed(2)} ${metric.unit} saved`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* SDG 11 Impact */}
