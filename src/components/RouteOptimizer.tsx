@@ -332,6 +332,8 @@ export function RouteOptimizer() {
         optimize_for: parameters.optimizeFor,
         avoid_tolls: parameters.avoidTolls,
         avoid_traffic: parameters.avoidTraffic,
+        include_explanation: true,
+        alternatives: 2,
       });
 
       setApiResponse(response);
