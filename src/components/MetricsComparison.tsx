@@ -16,7 +16,7 @@ export interface MetricsComparisonProps {
   baselineRoute: RouteResult | null;
   optimizedRoute: RouteResult | null;
   alternativeRoutes: RouteResult[];
-  llmExplanation: string | null;
+  llmExplanation: { routes?: any[]; note?: string; used_llm?: boolean } | string | null;
   isTrialUser: boolean;
   selectedRoute: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1' | null;
   onSelectedRouteChange: (route: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1') => void;
@@ -157,9 +157,26 @@ export function MetricsComparison({
                   AI Route Analysis
                 </span>
               </div>
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                {llmExplanation}
-              </p>
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+                {llmExplanation && typeof llmExplanation === 'object' ? (
+                  <>
+                    {llmExplanation.routes && Array.isArray(llmExplanation.routes) && llmExplanation.routes.map((route: any, index: number) => (
+                      <div key={index} className="mb-2">
+                        <div className="font-medium">{route.label}</div>
+                        <div className="text-xs opacity-80">{route.summary}</div>
+                        {route.suggestion && <div className="text-xs italic">{route.suggestion}</div>}
+                      </div>
+                    ))}
+                    {llmExplanation.note && (
+                      <div className="mt-3 pt-2 border-t border-blue-200 text-xs italic">
+                        {llmExplanation.note}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p>{typeof llmExplanation === 'string' ? llmExplanation : JSON.stringify(llmExplanation)}</p>
+                )}
+              </div>
             </div>
           )}
 
