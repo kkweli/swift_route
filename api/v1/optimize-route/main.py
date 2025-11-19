@@ -367,8 +367,8 @@ class handler(BaseHTTPRequestHandler):
                 "algorithm_used": primary.algorithm_used,
                 "processing_time": result.metadata['total_processing_time_ms'],
                 "request_id": f"req_{int(datetime.utcnow().timestamp())}",
-                "nodes_in_graph": result.metadata['nodes_in_graph'],
-                "edges_in_graph": result.metadata['edges_in_graph']
+                "nodes_in_graph": result.metadata.get('nodes_in_graph', 0),
+                "edges_in_graph": result.metadata.get('edges_in_graph', 0)
             },
             "timestamp": datetime.utcnow().isoformat() + "Z"
         }
