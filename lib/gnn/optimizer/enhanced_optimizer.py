@@ -119,23 +119,46 @@ class EnhancedOptimizer:
 
             print(f"OSRM returned {len(routes)} routes in single call")
 
-            # Fast transform: Use first route as baseline
+            # Use first OSRM route as baseline (fastest/shortest per OSRM profile)
+            baseline_osrm = routes[0]
             baseline = self._transform_osrm_route(
-                routes[0], vehicle_profile, "baseline_osrm", 0
+                baseline_osrm, vehicle_profile, "baseline_osrm", 0
             )
 
-            # Second route becomes optimized (with our ML modifications)
+            # Choose optimized via weighted scoring with diversity guard
+            candidate_pool = routes[1:] if len(routes) > 1 else routes
+            if not candidate_pool:
+                candidate_pool = [baseline_osrm]
+
+            if len(candidate_pool) == 1:
+                # No alternatives; generate a synthetic difference as last resort
+                chosen = self._apply_synthetic_optimization_for_difference(candidate_pool[0], baseline_osrm, optimization_criteria)
+            else:
+                chosen = self._select_optimized_route_different_from_baseline(
+                    candidate_pool, baseline_osrm, vehicle_profile, optimization_criteria, factor
+                )
+
             optimized = self._transform_osrm_route(
-                routes[1] if len(routes) > 1 else routes[0], vehicle_profile, f"optimized_{optimization_criteria}", 0
+                chosen, vehicle_profile, f"optimized_{optimization_criteria}", 0
             )
 
-            # Create alternatives from remaining routes (with visual distinctions)
+            # Alternatives: pick remaining distinct candidates up to num_alternatives
             alternatives = []
-            remaining_routes = routes[2:]  # Skip baseline and optimized
-            for i, route in enumerate(remaining_routes[:num_alternatives]):
+            # Exclude the chosen optimized candidate explicitly
+            remaining = [r for r in routes[1:] if r is not chosen]
+            for i, route in enumerate(remaining[: max(0, num_alternatives) ]):
                 alt = self._transform_osrm_route(
                     route, vehicle_profile, f"alternative_{i}", 0
                 )
+                # Skip duplicates very close to baseline/optimized (time & distance within ~2%)
+                if (
+                    abs(alt.time_minutes - optimized.time_minutes) / max(1.0, optimized.time_minutes) < 0.02
+                    and abs(alt.distance_km - optimized.distance_km) / max(1.0, optimized.distance_km) < 0.02
+                ) or (
+                    abs(alt.time_minutes - baseline.time_minutes) / max(1.0, baseline.time_minutes) < 0.02
+                    and abs(alt.distance_km - baseline.distance_km) / max(1.0, baseline.distance_km) < 0.02
+                ):
+                    continue
                 alternatives.append(alt)
 
             # Fast completion - skip complex analysis to stay under 10s
@@ -299,7 +322,8 @@ class EnhancedOptimizer:
         routes: List[Dict],
         baseline_route: Dict,
         vehicle_profile: VehicleProfile,
-        criteria: str
+        criteria: str,
+        factor: float = 1.0
     ) -> Dict:
         """
         Select an optimized route that's meaningfully different from baseline
@@ -319,9 +343,9 @@ class EnhancedOptimizer:
         # Score routes, prioritizing diversity from baseline
         scored_routes = []
         for route in routes:
-            score = self._calculate_route_score(route, vehicle_profile, criteria)
+            score = self._calculate_route_score(route, vehicle_profile, criteria, factor=factor)
 
-            # Add diversity penalty - prefer routes that are different from baseline
+            # Add diversity preference - prefer routes that differ from baseline
             route_distance = route.get('distance', 0) / 1000.0
             route_duration = route.get('duration', 0) / 60.0
 
@@ -342,12 +366,14 @@ class EnhancedOptimizer:
         best_route = scored_routes[0][1]
         best_diversity = scored_routes[0][2]
 
-        # If the best route isn't diverse enough, choose the most diverse alternative
-        if best_diversity < 0.05:  # Less than 5% different
-            diverse_routes = [(score, route, diversity) for score, route, diversity in scored_routes if diversity >= 0.05]
-            if diverse_routes:
-                diverse_routes.sort(key=lambda x: x[0])  # Sort by score
-                best_route = diverse_routes[0][1]
+        # If the best route isn't diverse enough, choose the most diverse among top-scoring
+        if best_diversity < 0.05:
+            # consider top 3 by score, pick the one with highest diversity over threshold
+            top = scored_routes[: min(3, len(scored_routes))]
+            viable = [t for t in top if t[2] >= 0.05]
+            if viable:
+                # sort viable by score again (already sorted), take first
+                best_route = viable[0][1]
 
         return best_route
     
@@ -747,10 +773,12 @@ class EnhancedOptimizer:
         Expects an environment with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
         Table schema (suggested): hour int, multiplier float
         """
-        supabase_url = os.getenv('SUPABASE_URL')
-        service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = (os.getenv('SUPABASE_URL') or '').strip()
+        service_key = (os.getenv('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
         if not supabase_url or not service_key:
-            return 1.0
+            # Fallback to cached multiplier if available
+            cached = self.cache.get('time_of_day_multiplier')
+            return float(cached) if cached else 1.0
 
         hour = datetime.utcnow().hour
         weekday = datetime.utcnow().weekday()  # 0 = Monday
