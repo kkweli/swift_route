@@ -189,10 +189,13 @@ export function InteractiveMap({
         {baselineRoute && baselineRoute.length > 0 && (
           <Polyline
             positions={baselineRoute.map(p => [p.lat, p.lng])}
-            color="#6B7280"
-            weight={4}
-            opacity={selectedRoute === 'baseline' ? 1 : 0.6}
+            color={selectedRoute === 'baseline' ? '#374151' : '#9CA3AF'}
+            weight={selectedRoute === 'baseline' ? 8 : 3}
+            opacity={selectedRoute === 'baseline' ? 1 : 0.3}
             dashArray={selectedRoute === 'baseline' ? undefined : '10, 10'}
+            pathOptions={{
+              className: selectedRoute === 'baseline' ? 'selected-route-pulse' : ''
+            }}
           />
         )}
 
@@ -200,9 +203,12 @@ export function InteractiveMap({
         {optimizedRoute && optimizedRoute.length > 0 && (
           <Polyline
             positions={optimizedRoute.map(p => [p.lat, p.lng])}
-            color="#10B981"
-            weight={4}
-            opacity={selectedRoute === 'optimized' ? 1 : 0.6}
+            color={selectedRoute === 'optimized' ? '#059669' : '#6EE7B7'}
+            weight={selectedRoute === 'optimized' ? 8 : 3}
+            opacity={selectedRoute === 'optimized' ? 1 : 0.3}
+            pathOptions={{
+              className: selectedRoute === 'optimized' ? 'selected-route-pulse' : ''
+            }}
           />
         )}
 
@@ -211,10 +217,13 @@ export function InteractiveMap({
           <Polyline
             key={`alt-${index}`}
             positions={route.map(p => [p.lat, p.lng])}
-            color={index === 0 ? '#3B82F6' : '#F59E0B'}
-            weight={4}
-            opacity={selectedRoute === `alternative-${index}` ? 1 : 0.5}
+            color={selectedRoute === `alternative-${index}` ? (index === 0 ? '#1E40AF' : '#D97706') : (index === 0 ? '#93C5FD' : '#FCD34D')}
+            weight={selectedRoute === `alternative-${index}` ? 8 : 3}
+            opacity={selectedRoute === `alternative-${index}` ? 1 : 0.3}
             dashArray="5, 5"
+            pathOptions={{
+              className: selectedRoute === `alternative-${index}` ? 'selected-route-pulse' : ''
+            }}
           />
         ))}
       </MapContainer>

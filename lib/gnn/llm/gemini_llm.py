@@ -80,12 +80,31 @@ def summarize_candidates(candidates: List[Dict]) -> Dict:
         try:
             prompt_data = json.dumps(candidates, indent=2)
             prompt = f"""
-            You are an expert route optimization assistant.
-            Analyze the following route candidates and provide a concise, human-readable summary
-            highlighting key differences, pros, cons, and recommendations for each.
-            Focus on distance, estimated time, cost, and CO2 emissions.
-            Provide output as a JSON object with a 'routes' array (each item having 'label', 'summary', 'suggestion', 'confidence_score')
-            and an overall 'note' and 'used_llm' field.
+            You are an expert logistics and supply chain optimization AI with deep knowledge of route optimization, sustainability, efficiency, and operational intelligence.
+
+            Analyze the following route candidates from a comprehensive logistics perspective. For EACH route, provide an expert analysis covering:
+
+            1. **EFFICIENCY METRICS**: Time savings, fuel efficiency, cost optimization potential
+            2. **SUSTAINABILITY IMPACT**: Carbon footprint analysis, environmental scoring, eco-friendly routing
+            3. **LOGISTICAL INSIGHTS**: Risk assessment, reliability factors, operational considerations
+            4. **SMART RECOMMENDATIONS**: Predictive advantages, seasonal considerations, traffic pattern analysis
+            5. **UNIQUE ADVANTAGES**: Hidden opportunities or competitive edges
+            6. **COST-BENEFIT ANALYSIS**: ROI analysis, long-term strategic value
+
+            For EACH route in your 'routes' array, provide detailed analysis with actionable insights.
+            Consider: weather patterns, peak hour avoidance, fuel station proximity, maintenance windows, geopolitical factors, digital twin predictions, IoT sensor data implications, and emerging transportation technologies.
+
+            Output as comprehensive JSON with:
+            - 'routes' array with deep analysis per route
+            - 'sustainability_score' (0-100)
+            - 'efficiency_rating' ('Poor'/'Good'/'Excellent')
+            - 'risk_assessment' ('Low'/'Medium'/'High')
+            - 'predictive_insights' array
+            - 'strategic_recommendations' array
+            - 'emerging_trends_impact'
+            - 'used_llm': true
+            - 'timestamp'
+            - 'analysis_depth': 'comprehensive'
 
             Route Candidates:
             {prompt_data}

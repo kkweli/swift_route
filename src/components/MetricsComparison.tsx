@@ -12,11 +12,30 @@ import { TrendingDown, Clock, DollarSign, Leaf, Route, Zap, ArrowRight, BrainCir
 import { RouteResult } from '@/lib/route-api';
 import { useNavigate } from 'react-router-dom';
 
+interface RouteAnalysis {
+  label: string;
+  summary: string;
+  suggestion?: string;
+  confidence_score?: number;
+}
+
 export interface MetricsComparisonProps {
   baselineRoute: RouteResult | null;
   optimizedRoute: RouteResult | null;
   alternativeRoutes: RouteResult[];
-  llmExplanation: { routes?: any[]; note?: string; used_llm?: boolean } | string | null;
+  llmExplanation: {
+    routes?: RouteAnalysis[];
+    note?: string;
+    used_llm?: boolean;
+    sustainability_score?: number;
+    efficiency_rating?: string;
+    risk_assessment?: string;
+    predictive_insights?: string[];
+    strategic_recommendations?: string[];
+    emerging_trends_impact?: string;
+    analysis_depth?: string;
+    timestamp?: string;
+  } | string | null;
   isTrialUser: boolean;
   selectedRoute: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1' | null;
   onSelectedRouteChange: (route: 'baseline' | 'optimized' | 'alternative-0' | 'alternative-1') => void;
@@ -160,7 +179,7 @@ export function MetricsComparison({
               <div className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
                 {llmExplanation && typeof llmExplanation === 'object' ? (
                   <>
-                    {llmExplanation.routes && Array.isArray(llmExplanation.routes) && llmExplanation.routes.map((route: any, index: number) => (
+                    {llmExplanation.routes && Array.isArray(llmExplanation.routes) && llmExplanation.routes.map((route: RouteAnalysis, index: number) => (
                       <div key={index} className="mb-2">
                         <div className="font-medium">{route.label}</div>
                         <div className="text-xs opacity-80">{route.summary}</div>
