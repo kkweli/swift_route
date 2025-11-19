@@ -9,6 +9,14 @@ from http.server import BaseHTTPRequestHandler
 import sys
 import os
 
+configured.
+def _clean_env(name: str, default: str = "") -> str:
+    val = os.getenv(name, default)
+    try:
+        return val.strip().rstrip() if isinstance(val, str) else default
+    except Exception:
+        return default
+
 print("--- Python handler starting ---")
 print(f"Python version: {sys.version}")
 print(f"Current working directory: {os.getcwd()}")
@@ -79,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             # Check for internal auth token (only for internal calls from Node.js)
             internal_auth = self.headers.get('X-Internal-Auth')
-            expected_auth = os.getenv('INTERNAL_AUTH_SECRET', 'internal-secret-key')
+            expected_auth = _clean_env('INTERNAL_AUTH_SECRET', 'internal-secret-key')
             # Log presence of internal auth without printing secret values
             logging.info(f"Internal auth header present: {bool(internal_auth)}; internal secret configured: {bool(expected_auth)}")
             
@@ -111,11 +119,14 @@ class handler(BaseHTTPRequestHandler):
             optimization = data.get('optimize_for', 'time')
             factor = float(data.get('factor', 1.0)) if data.get('factor') is not None else 1.0
             include_explanation = bool(data.get('include_explanation', False))
-            
-            # Create vehicle profile
-            vehicle_profile = self._create_vehicle_profile(vehicle_type, data)
-            
-            # Create optimization request
+
+            # Create vehicle profile (fallback if import fails)
+            try:
+                vehicle_profile = self._create_vehicle_profile(vehicle_type, data)
+            except:
+                vehicle_profile = None  # Will use fallback calculations
+
+            # Create optimization request (restore proper GNN usage)
             request = OptimizationRequest(
                 origin=origin,
                 destination=destination,
@@ -126,19 +137,18 @@ class handler(BaseHTTPRequestHandler):
                 factor=factor,
                 include_explanation=include_explanation
             )
-            
-            # Initialize engine and optimize
+
+            # Initialize engine and optimize (restore proper GNN calls)
             logging.info(f"Optimizing route from {origin} to {destination}")
             logging.info(f"Vehicle: {vehicle_type}, Optimization: {optimization}")
-            
+
             engine = RouteOptimizationEngine()
             result = engine.optimize(request)
-            
+
             if not result:
                 raise Exception("No route found between origin and destination. Check if road network data exists in database.")
-            
+
             # Optionally produce an LLM explanation (lazy import + safe fallback)
-            explanation = None
             if request.include_explanation:
                 # Build a lightweight candidate summary input for the summarizer
                 candidates_input = []
@@ -162,17 +172,23 @@ class handler(BaseHTTPRequestHandler):
                 try:
                     # Import lazily so handler can start even if LLM package missing
                     from gnn.llm import summarize_candidates
-                    explanation = summarize_candidates(candidates_input)
+                    import concurrent.futures
+                    llm_timeout_ms = int(os.getenv('LLM_SUMMARY_TIMEOUT_MS', '800') or '800')
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as _exec:
+                        future = _exec.submit(summarize_candidates, candidates_input)
+                        explanation = future.result(timeout=max(0.1, llm_timeout_ms / 1000.0))
                 except Exception as e:
                     logging.warning(f"LLM summarization unavailable: {e}")
                     # Safe deterministic fallback summary (no coordinates, safe text)
-                    try:
+                    if candidates_input:
                         explanation = " | ".join([
                             f"{i+1}: {c['distance']:.1f}km/{c['estimated_time']:.1f}m"
                             for i, c in enumerate(candidates_input)
                         ])
-                    except Exception:
+                    else:
                         explanation = "No explanation available"
+            else:
+                explanation = None
 
             # Format response (include explanation if present)
             response_data = self._format_response(result)
@@ -184,7 +200,7 @@ class handler(BaseHTTPRequestHandler):
                 self._log_optimization_event(request, result, response_data)
             except Exception as e:
                 logging.warning(f"Failed to log optimization event: {e}")
-            
+
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -247,8 +263,8 @@ class handler(BaseHTTPRequestHandler):
         Table: optimization_logs (suggested schema)
         { request_time, origin, destination, vehicle_type, optimization_criteria, processing_time_ms, baseline_time_minutes, optimized_time_minutes, improvements (json), traffic_info (json), confidence_score }
         """
-        supabase_url = os.getenv('SUPABASE_URL')
-        service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+        supabase_url = _clean_env('SUPABASE_URL')
+        service_key = _clean_env('SUPABASE_SERVICE_ROLE_KEY')
         if not supabase_url or not service_key:
             return
 
@@ -278,7 +294,8 @@ class handler(BaseHTTPRequestHandler):
 
             # Fire and forget but attempt to read response to ensure request completes
             try:
-                with urllib.request.urlopen(req, timeout=2) as resp:
+                timeout_sec = max(0.3, min(2.0, float(os.getenv('SUPABASE_LOG_TIMEOUT_SEC', '1'))))
+                with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
                     resp.read()
             except Exception as e:
                 # non-fatal
@@ -347,4 +364,3 @@ class handler(BaseHTTPRequestHandler):
         }
 
         return resp
-
