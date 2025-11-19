@@ -313,13 +313,7 @@ export function RouteOptimizer() {
       setLlmExplanation(null);
       setSelectedRoute('optimized');
 
-      console.log('🎯 API Response Data:', {
-        baselineRouteCount: response.data.baseline_route?.coordinates?.length,
-        optimizedRouteCount: response.data.optimized_route?.coordinates?.length,
-        alternativeRoutesCount: response.data.alternative_routes?.length,
-        baselineCoords: response.data.baseline_route?.coordinates?.slice(0, 3),
-        optimizedCoords: response.data.optimized_route?.coordinates?.slice(0, 3)
-      });
+
 
       setSubscription({
         ...subscription,
@@ -386,7 +380,7 @@ export function RouteOptimizer() {
         });
         if (context) setLlmContextMarkdown(context);
       } catch (e) {
-        console.warn('LLM insights/context debounced call failed:', e);
+
       } finally {
         setIsInsightsLoading(false);
         setIsContextLoading(false);

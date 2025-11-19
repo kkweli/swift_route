@@ -77,33 +77,33 @@ export function buildContextPrompt(
 
   // Build enhanced context prompt
   const lines: string[] = [];
-  lines.push('You are a local logistics expert. Provide detailed route context in GitHub Markdown format.');
-  lines.push('Include specific amenity names, weather conditions, and accessibility factors.');
+  lines.push('You are a local logistics expert. Provide route context in clean GitHub Markdown.');
+  lines.push('Use proper headings and bullet points. No HTML entities or escaped characters.');
   lines.push('');
-  lines.push('## Route Environment Analysis');
+  lines.push('# Route Context Analysis');
   lines.push('');
-  lines.push('### Current Conditions');
-  lines.push(`**Location**: ${regionContext}`);
-  lines.push(`**Time**: ${now} (${currentHour}:00 hour)`);
-  lines.push(`**Weather**: ${weatherContext}`);
-  lines.push(`**Traffic Level**: ${trafficLevel}x normal (${area} area)`);
-  lines.push(`**Accessibility**: ${accessibilityNotes}`);
+  lines.push('## Current Conditions');
+  lines.push(`- **Location**: ${regionContext}`);
+  lines.push(`- **Time**: ${now} (${currentHour}:00 hour)`);
+  lines.push(`- **Weather**: ${weatherContext}`);
+  lines.push(`- **Traffic**: ${trafficLevel}x normal (${area} area)`);
+  lines.push(`- **Accessibility**: ${accessibilityNotes}`);
   lines.push('');
-  lines.push('### Amenities & Infrastructure');
+  lines.push('## Amenities & Infrastructure');
   
   // Enhanced amenity analysis with specific names
   const amenityDetails = generateAmenityDetails(amenities, regionContext, currentHour);
   for (const detail of amenityDetails) {
-    lines.push(`**${detail.category}**: ${detail.description}`);
+    lines.push(`- **${detail.category}**: ${detail.description}`);
   }
   
   lines.push('');
-  lines.push('### Vehicle-Specific Considerations');
+  lines.push('## Vehicle-Specific Considerations');
   const vehicleType = opts.vehicleType || 'car';
   lines.push(getVehicleSpecificAdvice(vehicleType, area, currentHour));
   
   lines.push('');
-  lines.push('**Instructions**: Provide practical, location-specific advice. Include real amenity names where possible. Focus on current time/weather impacts.');
+  lines.push('**Instructions**: Provide practical advice in clean markdown. Use bullet points and proper formatting. No HTML entities.');
 
   return lines.join('\n');
 }
@@ -323,15 +323,40 @@ export interface FetchLLMOptions {
  */
 function normalizeMarkdown(text: string): string {
   if (!text) return text;
+  
+  // Clean up the text
   let t = text.replace(/\\n/g, '\n'); // unescape newlines
-  if (!/^\s*\*\*AI Route Analysis\*\*/.test(t) && !/^\s*#/.test(t)) {
-    t = `**AI Route Analysis**\n\n${t}`;
+  
+  // Decode HTML entities
+  t = t.replace(/&amp;/g, '&')
+       .replace(/&lt;/g, '<')
+       .replace(/&gt;/g, '>')
+       .replace(/&quot;/g, '"')
+       .replace(/&#39;/g, "'");
+  
+  // Ensure proper heading format
+  if (!/^\s*#/.test(t) && !/^\s*\*\*AI Route Analysis\*\*/.test(t)) {
+    t = `# AI Route Analysis\n\n${t}`;
   }
+  
+  // Fix markdown formatting
   t = t
     .split('\n')
-    .map((line) => line.replace(/^\s*\*\s+/, '- ').replace(/^\s*•\s+/, '- '))
+    .map((line) => {
+      // Convert bullet points
+      line = line.replace(/^\s*\*\s+/, '- ').replace(/^\s*•\s+/, '- ');
+      // Fix bold formatting
+      line = line.replace(/\*\*(.*?)\*\*/g, '**$1**');
+      return line;
+    })
     .join('\n');
+  
+  // Clean up excessive newlines
   t = t.replace(/\n{3,}/g, '\n\n');
+  
+  // Ensure proper spacing after headings
+  t = t.replace(/(#{1,6}\s+.*?)\n([^\n#])/g, '$1\n\n$2');
+  
   return t.trim();
 }
 
@@ -366,7 +391,6 @@ export async function fetchLLMInsights(
       });
       clearTimeout(id);
       if (!resp.ok) {
-        console.warn('LLM request failed:', resp.status, resp.statusText, 'model:', model);
         return null;
       }
       const data = (await resp.json()) as GeminiResponse;
@@ -380,8 +404,6 @@ export async function fetchLLMInsights(
       return null;
     } catch (err) {
       clearTimeout(id);
-      console.warn('LLM request error:', err, 'model:', model);
-      // Re-throw AbortError so caller can decide whether to skip fallback
       if (err && (err as { name?: string }).name === 'AbortError') {
         throw err;
       }
@@ -389,21 +411,11 @@ export async function fetchLLMInsights(
     }
   }
 
-  // Attempt primary model
+  // Only attempt primary model - no fallback to avoid errors
   try {
     const primary = await requestOnce(primaryModel, primaryTimeoutMs, maxOutputTokens);
-    if (primary) return primary;
+    return primary;
   } catch (e) {
-    // Primary attempt timed out; skip fallback to avoid repeated timeouts
     return null;
   }
-
-  // Fallback: smaller, faster model with shorter timeout and fewer tokens
-  const fallbackModel = 'gemini-1.5-flash-8b';
-  const fallback = await requestOnce(
-    fallbackModel,
-    Math.max(600, Math.floor(primaryTimeoutMs * 0.6)),
-    Math.min(160, maxOutputTokens)
-  );
-  return fallback;
 }
