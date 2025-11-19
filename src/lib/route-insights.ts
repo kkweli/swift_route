@@ -287,11 +287,25 @@ export function buildInsightsPrompt(
   )} kg CO2.`;
 
   const instructions = `
-Format strictly as GitHub-flavored Markdown:
-**AI Route Analysis**\n\n- Summary (best route for ${opts.optimizeFor || 'time'} and why)
-- Trade-offs (time vs cost vs emissions)
-- Recommendation (what to pick and when)
-- Heuristic (1 actionable tip for ${opts.vehicleType || 'vehicle'})\n\nRules: No code fences. Keep <= 700 chars. Avoid repeating raw numbers excessively.`;
+Format as clean GitHub Markdown with proper structure:
+
+# AI Route Analysis
+
+## Summary
+- Best route for ${opts.optimizeFor || 'time'} optimization and reasoning
+
+## Trade-offs
+- Time vs cost vs emissions comparison
+- Key differences between routes
+
+## Recommendation
+- Which route to choose and when
+- Specific use case guidance
+
+## Pro Tip
+- One actionable insight for ${opts.vehicleType || 'vehicle'} operations
+
+Rules: Use proper headings, bullet points, no HTML entities. Keep concise but well-formatted.`;
 
   const prompt = [
     header,
