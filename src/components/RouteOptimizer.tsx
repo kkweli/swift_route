@@ -83,7 +83,7 @@ export function RouteOptimizer() {
 
       if (response.ok) {
         const data = await response.json();
-        
+
         // Ensure data.data exists before accessing properties
         if (data && data.data) {
           setSubscription({
@@ -139,14 +139,14 @@ export function RouteOptimizer() {
         const data = await response.json();
         if (data.data && data.data.api_key) {
           setApiKey(data.data.api_key);
-          
+
           setSubscription({
             tier: 'trial',
             requests_remaining: data.data.requests_remaining,
             monthly_requests_included: data.data.requests_limit,
             trial_end_date: data.data.trial_end_date,
           });
-          
+
           toast({
             title: 'Trial Started!',
             description: `You have ${data.data.requests_limit} requests for 14 days`,
@@ -191,7 +191,7 @@ export function RouteOptimizer() {
       if (response.ok) {
         const data = await response.json();
         const activeKeys = ((data.data as Array<{ status?: string }>) || []).filter((k) => k.status === 'active');
-        
+
         if (activeKeys.length > 0) {
           // User has API keys - for dashboard use, we'll use their session token
           // The backend will recognize authenticated users
@@ -221,9 +221,6 @@ export function RouteOptimizer() {
     fetchSubscription();
     setupAPIKey();
   }, [fetchSubscription, setupAPIKey, user]);
-
-
-
 
   // Handle map clicks
   const handleMapClick = (latlng: LatLng) => {
@@ -292,7 +289,7 @@ export function RouteOptimizer() {
     if (!apiKey) {
       // Try to set up API key automatically
       await setupAPIKey();
-      
+
       // Check again after setup
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
@@ -303,7 +300,7 @@ export function RouteOptimizer() {
         });
         return;
       }
-      
+
       // Use session token as fallback
       setApiKey(session.access_token);
     }
@@ -362,7 +359,7 @@ export function RouteOptimizer() {
         ...subscription,
         requests_remaining: Math.max(0, subscription.requests_remaining - 1),
       });
-      
+
       // Refresh subscription data from server in background
       fetchSubscription();
 
