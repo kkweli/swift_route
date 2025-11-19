@@ -67,17 +67,12 @@ export function RouteOptimizer() {
   });
 
   // API key state
-  // Note: Dashboard users don't need API keys - they use their session token
-  // API keys are only needed for external B2B API integrations
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [isCreatingTrial, setIsCreatingTrial] = useState(false);
 
   // Fetch subscription data and set up API key from auth token
   const fetchSubscription = useCallback(async () => {
-    if (!user) {
-      // User must be logged in to use the route optimizer
-      return;
-    }
+    if (!user) return;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -89,8 +84,6 @@ export function RouteOptimizer() {
 
       if (response.ok) {
         const data = await response.json();
-
-        // Ensure data.data exists before accessing properties
         if (data && data.data) {
           setSubscription({
             tier: data.data.tier || 'trial',
@@ -99,8 +92,6 @@ export function RouteOptimizer() {
             trial_end_date: data.data.trial_end_date,
           });
         } else {
-          console.error('Invalid subscription data format:', data);
-          // Set default trial subscription
           setSubscription({
             tier: 'trial',
             requests_remaining: 100,
@@ -108,8 +99,6 @@ export function RouteOptimizer() {
           });
         }
       } else {
-        console.error('Failed to fetch subscription:', response.status, response.statusText);
-        // Set default trial subscription on error
         setSubscription({
           tier: 'trial',
           requests_remaining: 100,
@@ -117,8 +106,6 @@ export function RouteOptimizer() {
         });
       }
     } catch (error: unknown) {
-      console.error('Error fetching subscription:', error);
-      // Set default trial subscription on exception
       setSubscription({
         tier: 'trial',
         requests_remaining: 100,
@@ -145,29 +132,24 @@ export function RouteOptimizer() {
         const data = await response.json();
         if (data.data && data.data.api_key) {
           setApiKey(data.data.api_key);
-
           setSubscription({
             tier: 'trial',
             requests_remaining: data.data.requests_remaining,
             monthly_requests_included: data.data.requests_limit,
             trial_end_date: data.data.trial_end_date,
           });
-
           toast({
             title: 'Trial Started!',
             description: `You have ${data.data.requests_limit} requests for 14 days`,
           });
         }
       } else {
-        // If trial creation fails, use session token as fallback
         const { data: { session } } = await supabase.auth.getSession();
         if (session) {
           setApiKey(session.access_token);
         }
       }
     } catch (error) {
-      console.error('Error creating trial key:', error);
-      // Fallback to session token
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setApiKey(session.access_token);
@@ -188,8 +170,6 @@ export function RouteOptimizer() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // For dashboard users, check if they have a trial subscription
-      // If trial and no API key exists, create one automatically
       const response = await fetch('/api/v1/keys', {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
@@ -199,23 +179,16 @@ export function RouteOptimizer() {
         const activeKeys = ((data.data as Array<{ status?: string }>) || []).filter((k) => k.status === 'active');
 
         if (activeKeys.length > 0) {
-          // User has API keys - for dashboard use, we'll use their session token
-          // The backend will recognize authenticated users
           setApiKey(session.access_token);
         } else if (subscription.tier === 'trial') {
-          // Trial user with no keys - create trial key
           await createTrialKey();
         } else {
-          // Paid user with no keys - use session token
           setApiKey(session.access_token);
         }
       } else {
-        // If keys endpoint fails, still allow dashboard use with session token
         setApiKey(session.access_token);
       }
     } catch (error: unknown) {
-      console.error('Error setting up API key:', error);
-      // Fallback: use session token
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setApiKey(session.access_token);
@@ -243,7 +216,6 @@ export function RouteOptimizer() {
         description: `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`,
       });
     } else {
-      // Add as waypoint if allowed
       const isTrialUser = subscription.tier === 'trial';
       if (!isTrialUser || waypoints.length < 3) {
         setWaypoints([...waypoints, latlng]);
@@ -261,7 +233,6 @@ export function RouteOptimizer() {
     }
   };
 
-  // Handle waypoint management
   const handleAddWaypoint = () => {
     toast({
       title: 'Click on map',
@@ -276,7 +247,6 @@ export function RouteOptimizer() {
     });
   };
 
-  // Handle parameter changes
   const handleParametersChange = (params: Partial<OptimizationParameters>) => {
     setParameters({ ...parameters, ...params });
   };
@@ -293,10 +263,7 @@ export function RouteOptimizer() {
     }
 
     if (!apiKey) {
-      // Try to set up API key automatically
       await setupAPIKey();
-
-      // Check again after setup
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({
@@ -306,8 +273,6 @@ export function RouteOptimizer() {
         });
         return;
       }
-
-      // Use session token as fallback
       setApiKey(session.access_token);
     }
 
@@ -345,12 +310,9 @@ export function RouteOptimizer() {
       setBaselineRoute(response.data.baseline_route);
       setOptimizedRoute(response.data.optimized_route);
       setAlternativeRoutes(response.data.alternative_routes || []);
-      setLlmExplanation(null); // reset; will populate from client-side LLM
+      setLlmExplanation(null);
       setSelectedRoute('optimized');
 
-      // Defer LLM insights to debounced effect
-
-      // Debug: log the received data
       console.log('🎯 API Response Data:', {
         baselineRouteCount: response.data.baseline_route?.coordinates?.length,
         optimizedRouteCount: response.data.optimized_route?.coordinates?.length,
@@ -359,13 +321,11 @@ export function RouteOptimizer() {
         optimizedCoords: response.data.optimized_route?.coordinates?.slice(0, 3)
       });
 
-      // Update subscription data - decrement requests_remaining locally
       setSubscription({
         ...subscription,
         requests_remaining: Math.max(0, subscription.requests_remaining - 1),
       });
 
-      // Refresh subscription data from server in background
       fetchSubscription();
 
       toast({
@@ -384,7 +344,7 @@ export function RouteOptimizer() {
     }
   };
 
-  // Debounced LLM insights generation when response or key parameters change
+  // Debounced LLM insights generation
   useEffect(() => {
     if (!apiResponse) return;
 
@@ -397,7 +357,6 @@ export function RouteOptimizer() {
         const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
         const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
 
-        // Route analysis
         const analysisPrompt = buildInsightsPrompt(apiResponse, {
           vehicleType: parameters.vehicleType,
           optimizeFor: parameters.optimizeFor,
@@ -405,12 +364,11 @@ export function RouteOptimizer() {
         const analysis = await fetchLLMInsights(analysisPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),
           model: modelEnv || 'gemini-1.5-flash',
-          temperature: 0.4,
-          maxOutputTokens: 180,
+          temperature: 0.3,
+          maxOutputTokens: 400,
         });
         if (analysis) setLlmExplanation(analysis);
 
-        // Route context (traffic + amenities)
         const contextPrompt = buildContextPrompt(apiResponse, {
           vehicleType: parameters.vehicleType,
           optimizeFor: parameters.optimizeFor,
@@ -432,7 +390,6 @@ export function RouteOptimizer() {
     return () => clearTimeout(tid);
   }, [apiResponse, parameters.vehicleType, parameters.optimizeFor]);
 
-  // Helper: summarize amenities by type
   const summarizeAmenities = useCallback(() => {
     const amenities = apiResponse?.data?.amenities || [];
     const counts: Record<string, number> = {};
@@ -442,7 +399,6 @@ export function RouteOptimizer() {
     return counts;
   }, [apiResponse]);
 
-  // Handle example route loading
   const handleLoadExample = (exampleId: string) => {
     const example = EXAMPLE_ROUTES.find((r) => r.id === exampleId);
     if (!example) return;
@@ -530,7 +486,6 @@ export function RouteOptimizer() {
       {(baselineRoute || optimizedRoute) && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Metrics Comparison */}
             <MetricsComparison
               baselineRoute={baselineRoute}
               optimizedRoute={optimizedRoute}
@@ -540,8 +495,6 @@ export function RouteOptimizer() {
               selectedRoute={selectedRoute}
               onSelectedRouteChange={setSelectedRoute}
             />
-
-            {/* JSON Output */}
             <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
           </div>
 
@@ -589,146 +542,6 @@ export function RouteOptimizer() {
             )}
           </div>
         </>
-      )}
-
-      {/* Help Text */}
-      {!origin && !destination && (
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">
-            Click on the map to set your origin and destination, then click "Optimize Route" to see
-            the results.
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}lectValue placeholder="Load example route..." />
-          </SelectTrigger>
-          <SelectContent>
-            {EXAMPLE_ROUTES.map((example) => (
-              <SelectItem key={example.id} value={example.id}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{example.name}</span>
-                  <span className="text-xs text-muted-foreground">{example.industry}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Badge variant="secondary" className="ml-auto">
-          {EXAMPLE_ROUTES.length} examples available
-        </Badge>
-      </div>
-
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Panel - Input Controls */}
-        <div className="lg:col-span-1">
-          <RouteInputPanel
-            origin={origin}
-            destination={destination}
-            waypoints={waypoints}
-            parameters={parameters}
-            subscription={subscription}
-            isOptimizing={isOptimizing}
-            onOriginChange={setOrigin}
-            onDestinationChange={setDestination}
-            onAddWaypoint={handleAddWaypoint}
-            onRemoveWaypoint={handleRemoveWaypoint}
-            onParametersChange={handleParametersChange}
-            onOptimize={handleOptimize}
-          />
-        </div>
-
-        {/* Right Panel - Map */}
-        <div className="lg:col-span-2">
-          <div className="h-[600px] rounded-lg overflow-hidden shadow-lg">
-            {(() => {
-              const baselineCoords = baselineRoute?.coordinates || null;
-              const optimizedCoords = optimizedRoute?.coordinates || null;
-              const altCoords = alternativeRoutes.map(r => r.coordinates);
-
-              return (
-                <InteractiveMap
-                  origin={origin}
-                  destination={destination}
-                  waypoints={waypoints}
-                  baselineRoute={baselineCoords}
-                  optimizedRoute={optimizedCoords}
-                  alternativeRoutes={altCoords}
-                  onMapClick={handleMapClick}
-                  selectedRoute={selectedRoute}
-                />
-              );
-            })()}
-          </div>
-        </div>
-      </div>
-
-      {/* Results Section */}
-      {(baselineRoute || optimizedRoute) && (
-        <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Metrics Comparison */}
-            <MetricsComparison
-              baselineRoute={baselineRoute}
-              optimizedRoute={optimizedRoute}
-              alternativeRoutes={alternativeRoutes}
-              llmExplanation={llmExplanation}
-              isTrialUser={subscription.tier === 'trial'}
-              selectedRoute={selectedRoute}
-              onSelectedRouteChange={setSelectedRoute}
-            />
-
-            {/* JSON Output */}
-            <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
-          </div>
-
-          {/* AI Route Analysis (toggle + markdown) */}
-          <div className="mt-6 p-4 border rounded-lg bg-card">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">AI Route Analysis</h3>
-              <div className="flex items-center gap-2">
-                {isInsightsLoading && <span className="text-xs text-muted-foreground">loading…</span>}
-                <Button variant="secondary" onClick={() => setShowInsights(!showInsights)}>
-                  {showInsights ? 'Hide' : 'Show'} Insights
-                </Button>
-              </div>
-            </div>
-            {showInsights && (
-              <div className="prose prose-sm dark:prose-invert mt-3">
-                {llmExplanation ? (
-                  <ReactMarkdown>{llmExplanation}</ReactMarkdown>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Insights will appear here after optimization.</p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Route Context (LLM: traffic + amenities) */}
-          <div className="mt-4 p-4 border rounded-lg bg-card">
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Route Context</h3>
-              <div className="flex items-center gap-2">
-                {isContextLoading && <span className="text-xs text-muted-foreground">loading…</span>}
-                <Button variant="secondary" onClick={() => setShowContext(!showContext)}>
-                  {showContext ? 'Hide' : 'Show'} Context
-                </Button>
-              </div>
-            </div>
-            {showContext && (
-              <div className="prose prose-sm dark:prose-invert mt-3">
-                {llmContextMarkdown ? (
-                  <ReactMarkdown>{llmContextMarkdown}</ReactMarkdown>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Traffic and amenities context will appear here.</p>
-                )}
-              </div>
-            )}
-          </div>
-
-                  </>
       )}
 
       {/* Help Text */}
