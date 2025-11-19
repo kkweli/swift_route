@@ -101,14 +101,14 @@ Avoid repeating numbers excessively. Keep it succinct and practical.`;
 }
 
 export interface FetchLLMOptions {
-  timeoutMs?: number; // default 1600ms
+  timeoutMs?: number; // default 2500ms
   model?: string; // default gemini-1.5-flash
   temperature?: number; // default 0.4
-  maxOutputTokens?: number; // default 300
+  maxOutputTokens?: number; // default 260
 }
 
 /**
- * Fetch insights from Gemini with strict timeout.
+ * Fetch insights from Gemini with strict timeout and a single fast fallback.
  * Returns string on success, or null on failure/timeout/misconfig.
  */
 export async function fetchLLMInsights(
@@ -121,57 +121,49 @@ export async function fetchLLMInsights(
     return null;
   }
 
-  const model = options.model || 'gemini-1.5-flash';
-  const timeoutMs = Math.max(300, options.timeoutMs ?? 1600);
+  const primaryModel = options.model || (import.meta.env.VITE_GEMINI_MODEL as string) || 'gemini-1.5-flash';
   const temperature = options.temperature ?? 0.4;
-  const maxOutputTokens = options.maxOutputTokens ?? 300;
+  const maxOutputTokens = options.maxOutputTokens ?? 260;
+  const primaryTimeoutMs = Math.max(500, options.timeoutMs ?? 2500);
 
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(
-      apiKey
-    )}`;
-
-    const resp = await fetch(url, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: prompt }],
-          },
-        ],
-        generationConfig: {
-          temperature,
-          maxOutputTokens,
-        },
-      }),
-    });
-
-    clearTimeout(id);
-
-    if (!resp.ok) {
-      console.warn('LLM request failed:', resp.status, resp.statusText);
-      return null;
-    }
-
-    const data = (await resp.json()) as any;
-    const text =
-      data?.candidates?.[0]?.content?.parts
+  async function requestOnce(model: string, timeoutMs: number, tokens: number) {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature, maxOutputTokens: tokens },
+        }),
+      });
+      clearTimeout(id);
+      if (!resp.ok) {
+        console.warn('LLM request failed:', resp.status, resp.statusText, 'model:', model);
+        return null;
+      }
+      const data = (await resp.json()) as any;
+      const text = data?.candidates?.[0]?.content?.parts
         ?.map((p: any) => p?.text)
         .filter(Boolean)
         .join('') || null;
-
-    return (typeof text === 'string' && text.trim().length > 0) ? text.trim() : null;
-  } catch (err) {
-    clearTimeout(id);
-    console.warn('LLM request error:', err);
-    return null;
+      return (typeof text === 'string' && text.trim().length > 0) ? text.trim() : null;
+    } catch (err) {
+      clearTimeout(id);
+      console.warn('LLM request error:', err, 'model:', model);
+      return null;
+    }
   }
+
+  // Attempt primary model
+  const primary = await requestOnce(primaryModel, primaryTimeoutMs, maxOutputTokens);
+  if (primary) return primary;
+
+  // Fallback: smaller, faster model with shorter timeout and fewer tokens
+  const fallbackModel = 'gemini-1.5-flash-8b';
+  const fallback = await requestOnce(fallbackModel, Math.max(500, Math.floor(primaryTimeoutMs * 0.6)), Math.min(220, maxOutputTokens));
+  return fallback;
 }
