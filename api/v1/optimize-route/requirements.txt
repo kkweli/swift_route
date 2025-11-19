@@ -6,3 +6,4 @@
 # - Uses external OSRM API instead of local graph processing
 requests>=2.31.0
 python-dotenv>=1.0.0
+google-generativeai>=0.3.0

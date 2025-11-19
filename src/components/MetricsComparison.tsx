@@ -19,21 +19,36 @@ interface RouteAnalysis {
   confidence_score?: number;
 }
 
+interface LogisticsInsights {
+  route_summary?: string;
+  operational_advantages?: string[];
+  operational_challenges?: string[];
+  weather_recommendations?: string;
+  infrastructure_reliability?: string;
+  logistics_cost_implications?: string;
+}
+
+interface RouteLogisticsAnalysis {
+  label?: string;
+  summary?: string;
+  logistics_insights?: LogisticsInsights;
+  suggestion?: string;
+  confidence_score?: number;
+}
+
 export interface MetricsComparisonProps {
   baselineRoute: RouteResult | null;
   optimizedRoute: RouteResult | null;
   alternativeRoutes: RouteResult[];
   llmExplanation: {
-    routes?: RouteAnalysis[];
+    routes?: RouteLogisticsAnalysis[];
     note?: string;
     used_llm?: boolean;
-    sustainability_score?: number;
-    efficiency_rating?: string;
-    risk_assessment?: string;
-    predictive_insights?: string[];
-    strategic_recommendations?: string[];
-    emerging_trends_impact?: string;
-    analysis_depth?: string;
+    weather_readiness_assessment?: string;
+    infrastructure_quality_rating?: string;
+    driver_comfort_safety_index?: number;
+    emergency_preparedness_score?: number;
+    overall_logistics_suitability_rating?: string;
     timestamp?: string;
   } | string | null;
   isTrialUser: boolean;
@@ -176,18 +191,145 @@ export function MetricsComparison({
                   AI Route Analysis
                 </span>
               </div>
-              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
+              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-3">
                 {llmExplanation && typeof llmExplanation === 'object' ? (
                   <>
-                    {llmExplanation.routes && Array.isArray(llmExplanation.routes) && llmExplanation.routes.map((route: RouteAnalysis, index: number) => (
-                      <div key={index} className="mb-2">
-                        <div className="font-medium">{route.label}</div>
-                        <div className="text-xs opacity-80">{route.summary}</div>
-                        {route.suggestion && <div className="text-xs italic">{route.suggestion}</div>}
+                    {llmExplanation.routes && Array.isArray(llmExplanation.routes) && llmExplanation.routes.map((route: RouteLogisticsAnalysis, index: number) => (
+                      <div key={index} className="bg-white/50 dark:bg-gray-800/50 rounded p-3 mb-3">
+                        <div className="font-semibold text-blue-900 dark:text-blue-100 mb-2">{route.label}</div>
+
+                        {route.logistics_insights?.route_summary && (
+                          <div className="mb-2">
+                            <div className="font-medium text-xs text-blue-800 dark:text-blue-200 uppercase tracking-wide mb-1">Route Summary</div>
+                            <p className="text-sm">{route.logistics_insights.route_summary}</p>
+                          </div>
+                        )}
+
+                        {route.logistics_insights?.operational_advantages && route.logistics_insights.operational_advantages.length > 0 && (
+                          <div className="mb-2">
+                            <div className="font-medium text-xs text-green-700 dark:text-green-300 uppercase tracking-wide mb-1">Top Advantages</div>
+                            <ul className="text-sm space-y-1">
+                              {route.logistics_insights.operational_advantages.slice(0, 3).map((advantage: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-1">
+                                  <span className="text-green-500 mt-0.5">✓</span>
+                                  <span className="leading-snug">{advantage}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {route.logistics_insights?.operational_challenges && route.logistics_insights.operational_challenges.length > 0 && (
+                          <div className="mb-2">
+                            <div className="font-medium text-xs text-orange-700 dark:text-orange-300 uppercase tracking-wide mb-1">Key Challenges</div>
+                            <ul className="text-sm space-y-1">
+                              {route.logistics_insights.operational_challenges.slice(0, 3).map((challenge: string, idx: number) => (
+                                <li key={idx} className="flex items-start gap-1">
+                                  <span className="text-orange-500 mt-0.5">⚠</span>
+                                  <span className="leading-snug">{challenge}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                          {route.logistics_insights?.weather_recommendations && (
+                            <div className="bg-blue-50 dark:bg-blue-900/20 rounded p-2">
+                              <div className="font-medium text-xs text-blue-800 dark:text-blue-200 uppercase tracking-wide mb-1">Weather Notes</div>
+                              <p className="text-xs">{route.logistics_insights.weather_recommendations}</p>
+                            </div>
+                          )}
+
+                          {route.logistics_insights?.infrastructure_reliability && (
+                            <div className="bg-purple-50 dark:bg-purple-900/20 rounded p-2">
+                              <div className="font-medium text-xs text-purple-800 dark:text-purple-200 uppercase tracking-wide mb-1">Infrastructure</div>
+                              <p className="text-xs">{route.logistics_insights.infrastructure_reliability}</p>
+                            </div>
+                          )}
+                        </div>
+
+                        {route.logistics_insights?.logistics_cost_implications && (
+                          <div className="mt-2 bg-gray-50 dark:bg-gray-800/50 rounded p-2">
+                            <div className="font-medium text-xs text-gray-800 dark:text-gray-200 uppercase tracking-wide mb-1">Cost Implications</div>
+                            <p className="text-xs">{route.logistics_insights.logistics_cost_implications}</p>
+                          </div>
+                        )}
+
+                        {route.summary && (
+                          <div className="mt-2 pt-2 border-t border-blue-200 text-xs opacity-90">
+                            {route.summary}
+                          </div>
+                        )}
                       </div>
                     ))}
+
+                    <div className="mt-4 pt-3 border-t border-blue-300">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                        {llmExplanation.weather_readiness_assessment && (
+                          <div className="bg-white/50 dark:bg-gray-800/50 rounded p-2">
+                            <div className="font-medium text-xs text-blue-700 dark:text-blue-300 uppercase tracking-wide mb-1">Weather Ready</div>
+                            <Badge variant={llmExplanation.weather_readiness_assessment === 'Excellent' ? 'default' : llmExplanation.weather_readiness_assessment === 'Good' ? 'secondary' : 'destructive'}>
+                              {llmExplanation.weather_readiness_assessment}
+                            </Badge>
+                          </div>
+                        )}
+
+                        {llmExplanation.infrastructure_quality_rating && (
+                          <div className="bg-white/50 dark:bg-gray-800/50 rounded p-2">
+                            <div className="font-medium text-xs text-purple-700 dark:text-purple-300 uppercase tracking-wide mb-1">Infrastructure</div>
+                            <Badge variant={llmExplanation.infrastructure_quality_rating === 'Excellent' ? 'default' : llmExplanation.infrastructure_quality_rating === 'Good' ? 'secondary' : 'destructive'}>
+                              {llmExplanation.infrastructure_quality_rating}
+                            </Badge>
+                          </div>
+                        )}
+
+                        {llmExplanation.driver_comfort_safety_index !== undefined && (
+                          <div className="bg-white/50 dark:bg-gray-800/50 rounded p-2">
+                            <div className="font-medium text-xs text-green-700 dark:text-green-300 uppercase tracking-wide mb-1">Driver Safety</div>
+                            <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                              {llmExplanation.driver_comfort_safety_index}/100
+                            </div>
+                          </div>
+                        )}
+
+                        {llmExplanation.emergency_preparedness_score !== undefined && (
+                          <div className="bg-white/50 dark:bg-gray-800/50 rounded p-2">
+                            <div className="font-medium text-xs text-red-700 dark:text-red-300 uppercase tracking-wide mb-1">Emergency Ready</div>
+                            <div className="text-lg font-bold text-red-600 dark:text-red-400">
+                              {llmExplanation.emergency_preparedness_score}/100
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {llmExplanation.overall_logistics_suitability_rating && (
+                        <div className="mt-3 flex justify-center">
+                          <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 rounded-lg px-4 py-2 border border-blue-200 dark:border-blue-700">
+                            <div className="text-center">
+                              <div className="text-sm font-medium text-gray-800 dark:text-gray-200 mb-1">
+                                Overall Logistics Suitability
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`text-lg px-4 py-1 ${
+                                  llmExplanation.overall_logistics_suitability_rating === 'Excellent'
+                                    ? 'border-green-500 text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20'
+                                    : llmExplanation.overall_logistics_suitability_rating === 'Good'
+                                    ? 'border-blue-500 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
+                                    : 'border-orange-500 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20'
+                                }`}
+                              >
+                                {llmExplanation.overall_logistics_suitability_rating}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     {llmExplanation.note && (
-                      <div className="mt-3 pt-2 border-t border-blue-200 text-xs italic">
+                      <div className="mt-4 text-xs text-center text-blue-600 dark:text-blue-400 italic border-t border-blue-200 pt-2">
                         {llmExplanation.note}
                       </div>
                     )}

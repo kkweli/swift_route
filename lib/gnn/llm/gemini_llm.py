@@ -80,31 +80,64 @@ def summarize_candidates(candidates: List[Dict]) -> Dict:
         try:
             prompt_data = json.dumps(candidates, indent=2)
             prompt = f"""
-            You are an expert logistics and supply chain optimization AI with deep knowledge of route optimization, sustainability, efficiency, and operational intelligence.
+            You are a Logistics Geography & Environmental Intelligence AI specializing in route analysis for transportation and logistics operations.
 
-            Analyze the following route candidates from a comprehensive logistics perspective. For EACH route, provide an expert analysis covering:
+            Analyze these routes for a commercial vehicle (likely truck or van) in a logistics operational context. Provide detailed, actionable insights focused on the physical environment, infrastructure, and operational implications.
 
-            1. **EFFICIENCY METRICS**: Time savings, fuel efficiency, cost optimization potential
-            2. **SUSTAINABILITY IMPACT**: Carbon footprint analysis, environmental scoring, eco-friendly routing
-            3. **LOGISTICAL INSIGHTS**: Risk assessment, reliability factors, operational considerations
-            4. **SMART RECOMMENDATIONS**: Predictive advantages, seasonal considerations, traffic pattern analysis
-            5. **UNIQUE ADVANTAGES**: Hidden opportunities or competitive edges
-            6. **COST-BENEFIT ANALYSIS**: ROI analysis, long-term strategic value
+            For EACH ROUTE analyze these key logistics dimensions:
 
-            For EACH route in your 'routes' array, provide detailed analysis with actionable insights.
-            Consider: weather patterns, peak hour avoidance, fuel station proximity, maintenance windows, geopolitical factors, digital twin predictions, IoT sensor data implications, and emerging transportation technologies.
+            **WEATHER & ENVIRONMENTAL CONDITIONS:**
+            - Current weather patterns and seasonal impacts
+            - Road condition risks (puddles, flooding, black ice)
+            - Visibility concerns and driver safety
+            - Temperature effects on cargo and vehicle performance
 
-            Output as comprehensive JSON with:
-            - 'routes' array with deep analysis per route
-            - 'sustainability_score' (0-100)
-            - 'efficiency_rating' ('Poor'/'Good'/'Excellent')
-            - 'risk_assessment' ('Low'/'Medium'/'High')
-            - 'predictive_insights' array
-            - 'strategic_recommendations' array
-            - 'emerging_trends_impact'
-            - 'used_llm': true
-            - 'timestamp'
-            - 'analysis_depth': 'comprehensive'
+            **ROAD INFRASTRUCTURE & TERRAIN ANALYSIS:**
+            - Road quality and maintenance levels (potholes, cracks, wear)
+            - Terrain challenges (hills, curves, gradients, limited visibility)
+            - Bridge and tunnel characteristics
+            - Parking and maneuverability issues
+            - Weight restrictions and axle limitations
+            - Emergency lane accessibility
+
+            **AMENITIES & SUPPORT INFRASTRUCTURE:**
+            - Fuel stations, rest areas, and break facilities
+            - Loading docks and warehousing availability
+            - Emergency services proximity
+            - Maintenance facilities and repair options
+            - Restroom and driver comfort facilities
+            - Communication coverage and dead zones
+
+            **GEOGRAPHICAL & LOGISTICS CONTEXT:**
+            - Urban vs rural operational considerations
+            - Time zone changes and shift considerations
+            - Border crossing implications (if relevant)
+            - Regional traffic pattern knowledge
+            - Local regulation variations
+            - Economic zone considerations
+
+            **LOGISTICS-SPECIFIC INSIGHTS:**
+            - Just-in-Time delivery feasibility
+            - Load securing and safety concerns
+            - Driver fatigue risk assessment
+            - Emergency contingency planning
+            - Alternative routing potential
+
+            For each route provide:
+            - Route summary with key logistics implications
+            - Top 3 operational advantages and challenges
+            - Weather-dependent recommendations
+            - Infrastructure reliability assessment
+            - Cost implications in logistics context
+
+            Overall provide:
+            - Weather readiness assessment ('Poor'/'Good'/'Excellent')
+            - Infrastructure quality rating ('Poor'/'Good'/'Excellent')
+            - Driver comfort and safety index (0-100)
+            - Emergency preparedness score (0-100)
+            - Overall logistics suitability rating ('Poor'/'Good'/'Excellent')
+
+            Output as structured JSON with comprehensive logistics intelligence.
 
             Route Candidates:
             {prompt_data}
