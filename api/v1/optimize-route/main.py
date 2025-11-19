@@ -9,13 +9,32 @@ from http.server import BaseHTTPRequestHandler
 import sys
 import os
 
+print("--- Python handler starting ---")
+print(f"Python version: {sys.version}")
+print(f"Current working directory: {os.getcwd()}")
+print(f"File path: {__file__}")
+print(f"Initial sys.path: {sys.path}")
+
 # Add lib directory to path for imports
-lib_path = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'lib')
-sys.path.insert(0, lib_path)
+try:
+    # Vercel typically runs scripts from the project root
+    lib_path = os.path.join(os.getcwd(), 'lib')
+    if lib_path not in sys.path:
+        sys.path.insert(0, lib_path)
+    print(f"SUCCESS: 'lib' directory added to sys.path: {lib_path}")
+    print(f"Updated sys.path: {sys.path}")
+except Exception as e:
+    print(f"ERROR: Failed to modify sys.path: {e}")
 
-from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
-from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
-
+try:
+    from gnn.optimizer.engine import RouteOptimizationEngine, OptimizationRequest
+    print("SUCCESS: Imported gnn.optimizer modules")
+    from gnn.models.vehicle import VehicleProfile, VehicleType, FuelType
+    print("SUCCESS: Imported gnn.models modules")
+except Exception as e:
+    print(f"ERROR during gnn imports: {e}")
+    # Re-raise to ensure the function fails clearly if imports are broken
+    raise
 
 class handler(BaseHTTPRequestHandler):
     """Vercel serverless function handler"""
@@ -328,4 +347,4 @@ class handler(BaseHTTPRequestHandler):
         }
 
         return resp
-        
+

@@ -97,3 +97,5 @@ STRIPE_IMPLEMENTATION_GUIDE.md
 .qodo/
 dist/
 .vercel/
+tests/comprehensive_test.js
+.gitignore

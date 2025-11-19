@@ -9,7 +9,7 @@ import random
 from datetime import datetime
 from typing import Dict, Any, List, Tuple, Optional
 from dataclasses import dataclass, field
-from ..models.vehicle import VehicleProfile
+from ..models.vehicle import VehicleProfile, VehicleType, FuelType
 from ..network.osrm_client import OSRMClient, OSRMError
 from .traffic_analyzer import TrafficAnalyzer, AmenityRecommender
 import os
@@ -363,10 +363,6 @@ class EnhancedOptimizer:
             print(f"Error getting alternatives: {e}")
             return []
 
-        except Exception as e:
-            print(f"Error getting alternatives: {e}")
-            return []
-
     def _build_candidate_set(self, primary: RouteResult, alternatives: List[RouteResult], vehicle_profile: VehicleProfile, criteria: str, factor: float = 1.0, max_candidates: int = 3) -> List[RouteResult]:
         """
         Build a diverse set of candidate routes: include fastest, cheapest, shortest and the primary optimized route.
@@ -413,16 +409,6 @@ class EnhancedOptimizer:
 
         return unique[:max_candidates]
 
-    def _map_vehicle_to_profile(self, vehicle_profile: VehicleProfile) -> str:
-        """Map VehicleProfile to OSRM profile string"""
-        mapping = {
-            VehicleType.CAR: 'car',
-            VehicleType.TRUCK: 'truck',
-            VehicleType.MOTORCYCLE: 'motorcycle',
-            VehicleType.ELECTRIC_CAR: 'car'  # OSRM doesn't have electric car profile, use car
-        }
-        return mapping.get(vehicle_profile.vehicle_type, 'car')
-
     def _calculate_cost(self, distance_km: float, vehicle_profile: VehicleProfile) -> float:
         """Calculate estimated cost of route in USD"""
         # Base cost per km for fuel/energy
@@ -460,26 +446,14 @@ class EnhancedOptimizer:
     def _map_vehicle_to_profile(self, vehicle_profile: VehicleProfile) -> str:
         """Map VehicleProfile to OSRM profile string"""
         mapping = {
-            VehicleType.CAR: 'car',
-            VehicleType.TRUCK: 'truck',
-            VehicleType.MOTORCYCLE: 'motorcycle',
-            VehicleType.ELECTRIC_CAR: 'car'  # OSRM doesn't have electric car profile, use car
+            'car': 'car',
+            'truck': 'car',
+            'van': 'car',
+            'motorcycle': 'car',
+            'bicycle': 'bike',
+            'electric_car': 'car'
         }
-        return mapping.get(vehicle_profile.vehicle_type, 'car')
-
-    def _fetch_time_of_day_multiplier(self) -> float:
-        """Fetch the current time-of-day multiplier from Supabase REST API.
-
-        The function retrieves the multiplier for the current weekday and hour.
-        If not found, it falls back to the overall average for the weekday, then 1.0.
-    def _calculate_cost(self, distance_km: float, vehicle_profile: VehicleProfile) -> float:
-
-                for r in remaining:
-                    if len(unique) >= max_candidates:
-                        break
-                    unique.append(r)
-
-            return unique[:max_candidates]
+        return mapping.get(vehicle_profile.vehicle_type.value, 'car')
     
     def _transform_osrm_route(
         self,
@@ -562,44 +536,3 @@ class EnhancedOptimizer:
                 print('Error fetching multipliers:', e)
 
         return 1.0
-    
-    @staticmethod
-    def _calculate_cost(distance_km: float, vehicle: VehicleProfile) -> float:
-        """Calculate route cost"""
-        cost_per_km = {
-            'car': 0.15,
-            'truck': 0.35,
-            'van': 0.25,
-            'motorcycle': 0.08,
-            'bicycle': 0.0,
-            'electric_car': 0.05
-        }
-        base_cost = cost_per_km.get(vehicle.vehicle_type.value, 0.15)
-        return distance_km * base_cost
-    
-    @staticmethod
-    def _calculate_emissions(distance_km: float, vehicle: VehicleProfile) -> float:
-        """Calculate CO2 emissions"""
-        emissions_per_km = {
-            'car': 0.12,
-            'truck': 0.25,
-            'van': 0.18,
-            'motorcycle': 0.08,
-            'bicycle': 0.0,
-            'electric_car': 0.03
-        }
-        base_emissions = emissions_per_km.get(vehicle.vehicle_type.value, 0.12)
-        return distance_km * base_emissions
-    
-    @staticmethod
-    def _map_vehicle_to_profile(vehicle: VehicleProfile) -> str:
-        """Map vehicle type to OSRM profile"""
-        mapping = {
-            'car': 'car',
-            'truck': 'car',
-            'van': 'car',
-            'motorcycle': 'car',
-            'bicycle': 'bike',
-            'electric_car': 'car'
-        }
-        return mapping.get(vehicle.vehicle_type.value, 'car')
