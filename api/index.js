@@ -743,12 +743,16 @@ export default async function handler(req, res) {
         // Forward request to Python handler with internal auth token
         const pythonEndpoint = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/v1/optimize-route/internal`;
         
+        const bypass = process.env.VERCEL_PROTECTION_BYPASS || process.env.VERCEL_AUTOMATION_BYPASS || process.env.VERCEL_BYPASS_TOKEN;
+        const headers = {
+          'Content-Type': 'application/json',
+          'X-Internal-Auth': process.env.INTERNAL_AUTH_SECRET || 'internal-secret-key',
+          ...(bypass ? { 'x-vercel-protection-bypass': bypass } : {})
+        };
+
         const pythonResponse = await fetch(pythonEndpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Internal-Auth': process.env.INTERNAL_AUTH_SECRET || 'internal-secret-key',
-          },
+          headers,
           body: JSON.stringify(req.body)
         });
 
