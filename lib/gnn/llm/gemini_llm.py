@@ -31,7 +31,7 @@ def _call_gemini_api(prompt: str) -> Optional[str]:
 
     try:
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(prompt)
         # Assuming the response format is text, or can be converted to string
         return response.text
