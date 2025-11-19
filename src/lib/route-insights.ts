@@ -86,7 +86,7 @@ Return a short bullet list:
 - Any caution or heuristics (e.g., traffic, vehicle constraints)
 Avoid repeating numbers excessively. Keep it succinct and practical.`;
 
-  return [
+  const prompt = [
     header,
     '',
     baselineLine,
@@ -98,13 +98,16 @@ Avoid repeating numbers excessively. Keep it succinct and practical.`;
   ]
     .filter(Boolean)
     .join('\n');
+
+  // Enforce a hard cap to reduce latency and costs
+  return prompt.length > 1200 ? prompt.slice(0, 1200) : prompt;
 }
 
 export interface FetchLLMOptions {
-  timeoutMs?: number; // default 2500ms
+  timeoutMs?: number; // default 4000ms
   model?: string; // default gemini-1.5-flash
   temperature?: number; // default 0.4
-  maxOutputTokens?: number; // default 260
+  maxOutputTokens?: number; // default 180
 }
 
 /**
@@ -123,8 +126,8 @@ export async function fetchLLMInsights(
 
   const primaryModel = options.model || (import.meta.env.VITE_GEMINI_MODEL as string) || 'gemini-1.5-flash';
   const temperature = options.temperature ?? 0.4;
-  const maxOutputTokens = options.maxOutputTokens ?? 260;
-  const primaryTimeoutMs = Math.max(500, options.timeoutMs ?? 2500);
+  const maxOutputTokens = options.maxOutputTokens ?? 180;
+  const primaryTimeoutMs = Math.max(800, options.timeoutMs ?? 4000);
 
   async function requestOnce(model: string, timeoutMs: number, tokens: number) {
     const controller = new AbortController();
@@ -154,16 +157,29 @@ export async function fetchLLMInsights(
     } catch (err) {
       clearTimeout(id);
       console.warn('LLM request error:', err, 'model:', model);
+      // Re-throw AbortError so caller can decide whether to skip fallback
+      if (err && (err as { name?: string }).name === 'AbortError') {
+        throw err;
+      }
       return null;
     }
   }
 
   // Attempt primary model
-  const primary = await requestOnce(primaryModel, primaryTimeoutMs, maxOutputTokens);
-  if (primary) return primary;
+  try {
+    const primary = await requestOnce(primaryModel, primaryTimeoutMs, maxOutputTokens);
+    if (primary) return primary;
+  } catch (e) {
+    // Primary attempt timed out; skip fallback to avoid repeated timeouts
+    return null;
+  }
 
   // Fallback: smaller, faster model with shorter timeout and fewer tokens
   const fallbackModel = 'gemini-1.5-flash-8b';
-  const fallback = await requestOnce(fallbackModel, Math.max(500, Math.floor(primaryTimeoutMs * 0.6)), Math.min(220, maxOutputTokens));
+  const fallback = await requestOnce(
+    fallbackModel,
+    Math.max(600, Math.floor(primaryTimeoutMs * 0.6)),
+    Math.min(160, maxOutputTokens)
+  );
   return fallback;
 }
