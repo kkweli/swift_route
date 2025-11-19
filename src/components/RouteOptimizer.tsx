@@ -449,16 +449,24 @@ export function RouteOptimizer() {
         {/* Right Panel - Map */}
         <div className="lg:col-span-2">
           <div className="h-[600px] rounded-lg overflow-hidden shadow-lg">
-            <InteractiveMap
-              origin={origin}
-              destination={destination}
-              waypoints={waypoints}
-              baselineRoute={baselineRoute?.coordinates || null}
-              optimizedRoute={optimizedRoute?.coordinates || null}
-              alternativeRoutes={alternativeRoutes.map(r => r.coordinates)}
-              onMapClick={handleMapClick}
-              selectedRoute={selectedRoute}
-            />
+            {(() => {
+              const baselineCoords = baselineRoute?.coordinates || null;
+              const optimizedCoords = optimizedRoute?.coordinates || null;
+              const altCoords = alternativeRoutes.map(r => r.coordinates);
+
+              return (
+                <InteractiveMap
+                  origin={origin}
+                  destination={destination}
+                  waypoints={waypoints}
+                  baselineRoute={baselineCoords}
+                  optimizedRoute={optimizedCoords}
+                  alternativeRoutes={altCoords}
+                  onMapClick={handleMapClick}
+                  selectedRoute={selectedRoute}
+                />
+              );
+            })()}
           </div>
         </div>
       </div>
