@@ -92,6 +92,17 @@ export function InteractiveMap({
 }: InteractiveMapProps) {
   const mapRef = useRef<L.Map | null>(null);
 
+  // Debug: log rendering data
+  console.log('🗺️ InteractiveMap Props:', {
+    hasOrigin: !!origin,
+    hasDestination: !!destination,
+    waypointsCount: waypoints.length,
+    baselineRouteCount: baselineRoute?.length,
+    optimizedRouteCount: optimizedRoute?.length,
+    alternativeRoutesCount: alternativeRoutes.length,
+    selectedRoute,
+  });
+
   // Auto-fit bounds when routes change
   useEffect(() => {
     if (mapRef.current && (baselineRoute || optimizedRoute)) {

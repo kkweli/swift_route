@@ -21,6 +21,7 @@ import {
   RouteOptimizationResponse,
   RouteResult,
   formatRouteAPIError,
+  RouteAPIError,
 } from '@/lib/route-api';
 import { EXAMPLE_ROUTES, ExampleRoute } from '@/lib/example-routes';
 
@@ -343,6 +344,19 @@ export function RouteOptimizer() {
       setLlmExplanation(response.metadata?.explanation || null);
       setSelectedRoute('optimized');
 
+      // Debug: log the received data
+      console.log('🎯 API Response Data:', {
+        hasExplanation: !!response.metadata?.explanation,
+        explanation: response.metadata?.explanation,
+        baselineRouteCount: response.data.baseline_route?.coordinates?.length,
+        optimizedRouteCount: response.data.optimized_route?.coordinates?.length,
+        alternativeRoutesCount: response.data.alternative_routes?.length,
+        alternativeCoordinates: response.data.alternative_routes?.map((r: RouteResult, i: number) => ({
+          alt: i,
+          count: r.coordinates?.length
+        }))
+      });
+
       // Update subscription data - decrement requests_remaining locally
       setSubscription({
         ...subscription,
@@ -360,7 +374,7 @@ export function RouteOptimizer() {
       console.error('Optimization error:', error);
       toast({
         title: 'Optimization failed',
-        description: formatRouteAPIError(error as unknown as Error),
+        description: error instanceof RouteAPIError ? formatRouteAPIError(error) : (error as Error).message,
         variant: 'destructive',
       });
     } finally {

@@ -48,6 +48,16 @@ export function MetricsComparison({
     );
   }
 
+  // Debug: log rendering data
+  console.log('📊 MetricsComparison Props:', {
+    hasBaselineRoute: !!baselineRoute,
+    hasOptimizedRoute: !!optimizedRoute,
+    alternativeRoutesCount: alternativeRoutes.length,
+    llmExplanation: llmExplanation,
+    isTrialUser,
+    selectedRoute,
+  });
+
   const distanceImprovement =
     ((baselineRoute.distance - optimizedRoute.distance) / baselineRoute.distance) * 100;
   const timeImprovement =
