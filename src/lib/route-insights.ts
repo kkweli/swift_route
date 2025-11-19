@@ -16,6 +16,83 @@ export interface InsightsOptions {
   optimizeFor?: 'distance' | 'time' | 'cost';
 }
 
+function formatLocalTime(): string {
+  const d = new Date();
+  let hours = d.getHours();
+  const minutes = d.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12; // the hour '0' should be '12'
+  const mm = minutes < 10 ? `0${minutes}` : `${minutes}`;
+  const hh = hours < 10 ? `0${hours}` : `${hours}`;
+  return `${hh}:${mm} ${ampm}`;
+}
+
+export function buildContextPrompt(
+  response: RouteOptimizationResponse,
+  opts: InsightsOptions = {}
+): string {
+  const t = response?.data?.traffic_info as any;
+  const amenities = (response?.data?.amenities || []).slice(0, 6) as any[];
+
+  const area = (t?.area_type || 'unknown').toString();
+  const trafficLevel = Number(t?.traffic_level ?? 1).toFixed(1);
+  const now = formatLocalTime();
+
+  // Build a compact, GFM-friendly prompt
+  const lines: string[] = [];
+  lines.push('You are a logistics assistant. Format strictly as GitHub-flavored Markdown.');
+  lines.push('No code fences. Keep <= 700 chars.');
+  lines.push('');
+  lines.push('Traffic Conditions');
+  lines.push('Current traffic analysis for your route');
+  lines.push(`${area} area traffic`);
+  lines.push(capitalize(area));
+  lines.push(now);
+  lines.push(`Traffic impact: ${trafficLevel}x normal conditions`);
+  lines.push('');
+  lines.push('Amenities Along Route');
+  lines.push('Recommended stops based on time of day and route duration');
+
+  // Group amenities by type and include priority
+  const byType: Record<string, { count: number; priority?: string }> = {};
+  for (const a of amenities) {
+    const key = (a?.type || 'amenity').toString();
+    const priority = (a?.priority || '').toString();
+    if (!byType[key]) byType[key] = { count: 0, priority };
+    byType[key].count += 1;
+    if (priority && !byType[key].priority) byType[key].priority = priority;
+  }
+  const entries = Object.entries(byType).slice(0, 5);
+  for (const [type, info] of entries) {
+    const readable = type.replace(/_/g, ' ');
+    const prio = info.priority || 'medium';
+    // Keep lines concise; the LLM will produce final natural language from these hints
+    lines.push(`${readable}`);
+    lines.push(hintForAmenity(type));
+    lines.push(prio);
+  }
+
+  lines.push('');
+  lines.push(`Rules: Use headings and short phrases like the examples. No raw JSON. Avoid repetition.`);
+
+  return lines.join('\n');
+}
+
+function capitalize(s: string): string {
+  if (!s) return s;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function hintForAmenity(type: string): string {
+  const t = type.toLowerCase();
+  if (t.includes('gas') || t.includes('fuel')) return 'Fuel stops available along route';
+  if (t.includes('restaurant') || t.includes('food')) return 'Meal options available';
+  if (t.includes('parking')) return 'Parking available along route';
+  if (t.includes('rest') || t.includes('break')) return 'Rest areas available';
+  return 'Amenity available along route';
+}
+
 function round(n: number | undefined | null, digits = 2): number {
   if (typeof n !== 'number' || !isFinite(n)) return 0;
   const p = Math.pow(10, digits);

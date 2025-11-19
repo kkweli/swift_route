@@ -24,7 +24,7 @@ import {
   RouteAPIError,
 } from '@/lib/route-api';
 import { EXAMPLE_ROUTES, ExampleRoute } from '@/lib/example-routes';
-import { buildInsightsPrompt, fetchLLMInsights } from '@/lib/route-insights';
+import { buildInsightsPrompt, buildContextPrompt, fetchLLMInsights } from '@/lib/route-insights';
 import ReactMarkdown from 'react-markdown';
 
 export function RouteOptimizer() {
@@ -52,6 +52,9 @@ export function RouteOptimizer() {
   const [apiResponse, setApiResponse] = useState<RouteOptimizationResponse | null>(null);
   const [showInsights, setShowInsights] = useState<boolean>(true);
   const [isInsightsLoading, setIsInsightsLoading] = useState<boolean>(false);
+  const [llmContextMarkdown, setLlmContextMarkdown] = useState<string | null>(null);
+  const [isContextLoading, setIsContextLoading] = useState<boolean>(false);
+  const [showContext, setShowContext] = useState<boolean>(true);
 
   // UI state
   const [isOptimizing, setIsOptimizing] = useState(false);
@@ -391,27 +394,42 @@ export function RouteOptimizer() {
     const debounceMsRaw = import.meta.env.VITE_GEMINI_DEBOUNCE_MS as unknown as string | undefined;
     const debounceMs = Math.max(0, Number(debounceMsRaw ?? '600'));
     setIsInsightsLoading(true);
+    setIsContextLoading(true);
     const tid = setTimeout(async () => {
       try {
-        const prompt = buildInsightsPrompt(apiResponse, {
+        const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
+        const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
+
+        // Route analysis
+        const analysisPrompt = buildInsightsPrompt(apiResponse, {
           vehicleType: parameters.vehicleType,
           optimizeFor: parameters.optimizeFor,
         });
-        const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
-        const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
-        const insights = await fetchLLMInsights(prompt, {
+        const analysis = await fetchLLMInsights(analysisPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),
           model: modelEnv || 'gemini-1.5-flash',
           temperature: 0.4,
           maxOutputTokens: 180,
         });
-        if (insights) {
-          setLlmExplanation(insights);
-        }
+        if (analysis) setLlmExplanation(analysis);
+
+        // Route context (traffic + amenities)
+        const contextPrompt = buildContextPrompt(apiResponse, {
+          vehicleType: parameters.vehicleType,
+          optimizeFor: parameters.optimizeFor,
+        });
+        const context = await fetchLLMInsights(contextPrompt, {
+          timeoutMs: Number(timeoutEnv ?? '4000'),
+          model: modelEnv || 'gemini-1.5-flash',
+          temperature: 0.4,
+          maxOutputTokens: 180,
+        });
+        if (context) setLlmContextMarkdown(context);
       } catch (e) {
-        console.warn('LLM insights debounced call failed:', e);
+        console.warn('LLM insights/context debounced call failed:', e);
       } finally {
         setIsInsightsLoading(false);
+        setIsContextLoading(false);
       }
     }, debounceMs);
     return () => clearTimeout(tid);
@@ -560,24 +578,26 @@ export function RouteOptimizer() {
             )}
           </div>
 
-          {/* Map context: area and nearby amenities summary */}
+          {/* Route Context (LLM: traffic + amenities) */}
           <div className="mt-4 p-4 border rounded-lg bg-card">
-            <h4 className="font-medium mb-2">Map Context</h4>
-            <div className="text-sm text-muted-foreground">
-              <div>Area type: {apiResponse?.data?.traffic_info?.area_type || 'unknown'}</div>
-              <div className="mt-2">Nearby amenities:</div>
-              <ul className="list-disc list-inside">
-                {Object.entries(summarizeAmenities()).length > 0 ? (
-                  Object.entries(summarizeAmenities()).map(([type, count]) => (
-                    <li key={type}>
-                      {type.replace(/_/g, ' ')}: {count}
-                    </li>
-                  ))
-                ) : (
-                  <li>None reported</li>
-                )}
-              </ul>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold">Route Context</h3>
+              <div className="flex items-center gap-2">
+                {isContextLoading && <span className="text-xs text-muted-foreground">loading…</span>}
+                <Button variant="secondary" onClick={() => setShowContext(!showContext)}>
+                  {showContext ? 'Hide' : 'Show'} Context
+                </Button>
+              </div>
             </div>
+            {showContext && (
+              <div className="prose prose-sm dark:prose-invert mt-3">
+                {llmContextMarkdown ? (
+                  <ReactMarkdown>{llmContextMarkdown}</ReactMarkdown>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Traffic and amenities context will appear here.</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Traffic and Amenity Information */}
