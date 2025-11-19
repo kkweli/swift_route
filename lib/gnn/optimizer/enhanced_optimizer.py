@@ -399,10 +399,10 @@ class EnhancedOptimizer:
             remaining = [r for r in pool if r not in unique]
             # sort remaining by scoring function (lower better)
             remaining.sort(key=lambda r: self._calculate_route_score({'distance': r.distance_km * 1000, 'duration': r.time_minutes * 60}, vehicle_profile, criteria, factor=factor))
-                for r in remaining:
-                    if len(unique) >= max_candidates:
-                        break
-                    unique.append(r)
+            for r in remaining:
+                if len(unique) >= max_candidates:
+                    break
+                unique.append(r)
         
         # Ensure that the primary route is always present and at the first position
         if primary not in unique:
