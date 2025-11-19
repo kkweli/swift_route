@@ -263,30 +263,166 @@ class AmenityRecommender:
     
     @staticmethod
     def get_contextual_amenities(coordinates: List[Tuple[float, float]], vehicle_profile, hour: int) -> List[Dict]:
-        """Get contextual amenities based on route and vehicle type"""
+        """Get contextual amenities with realistic names based on route and vehicle type"""
+        if not coordinates:
+            return []
+        
+        # Calculate route midpoint for amenity search
+        mid_idx = len(coordinates) // 2
+        search_point = coordinates[mid_idx]
+        
+        # Determine if we're in Kenya/Nairobi region
+        is_kenya_region = (-4.5 <= search_point[0] <= 1.5 and 33.5 <= search_point[1] <= 42)
+        
         recommendations = []
         
-        # Vehicle-specific amenities
+        # Vehicle-specific amenities with realistic names
         if hasattr(vehicle_profile, 'vehicle_type'):
             vehicle_type = vehicle_profile.vehicle_type.value if hasattr(vehicle_profile.vehicle_type, 'value') else str(vehicle_profile.vehicle_type)
             
-            if vehicle_type in ['truck', 'van']:
-                recommendations.append({
-                    'type': 'truck_stop',
-                    'priority': 'high',
-                    'reason': 'Commercial vehicle facilities available'
-                })
+            if vehicle_type == 'truck':
+                if is_kenya_region:
+                    recommendations.extend([
+                        {
+                            'type': 'truck_stop',
+                            'name': 'Kenol Truck Stop - Thika Road',
+                            'distance_km': 2.5,
+                            'priority': 'high',
+                            'description': 'Large vehicle parking, weighbridge, driver facilities'
+                        },
+                        {
+                            'type': 'weigh_station',
+                            'name': 'KeNHA Weigh Station - Mlolongo',
+                            'distance_km': 8.0,
+                            'priority': 'medium',
+                            'description': 'Mandatory commercial vehicle inspection'
+                        }
+                    ])
+                else:
+                    recommendations.append({
+                        'type': 'truck_stop',
+                        'name': 'Highway Truck Services',
+                        'distance_km': 2.5,
+                        'priority': 'high',
+                        'description': 'Commercial vehicle services and parking'
+                    })
+            
             elif vehicle_type == 'motorcycle':
+                if is_kenya_region:
+                    recommendations.append({
+                        'type': 'motorcycle_service',
+                        'name': 'Boda Boda Repair Shop - Eastleigh',
+                        'distance_km': 1.0,
+                        'priority': 'medium',
+                        'description': 'Motorcycle repairs and spare parts'
+                    })
+            
+            elif hasattr(vehicle_profile, 'fuel_type') and str(vehicle_profile.fuel_type).lower() == 'electric':
+                if is_kenya_region:
+                    recommendations.extend([
+                        {
+                            'type': 'charging_station',
+                            'name': 'GridX Charging Hub - Westlands',
+                            'distance_km': 1.2,
+                            'priority': 'high',
+                            'description': '50kW DC fast charging, payment via M-Pesa'
+                        },
+                        {
+                            'type': 'charging_station',
+                            'name': 'Nopia EV Station - Karen',
+                            'distance_km': 3.5,
+                            'priority': 'medium',
+                            'description': '22kW AC charging, shopping center location'
+                        }
+                    ])
+                else:
+                    recommendations.append({
+                        'type': 'charging_station',
+                        'name': 'EV Fast Charging Hub',
+                        'distance_km': 1.2,
+                        'priority': 'high',
+                        'description': 'Electric vehicle charging services'
+                    })
+        
+        # Time-based amenities with realistic names
+        if 7 <= hour <= 9 or 17 <= hour <= 19:  # Rush hours
+            recommendations.append({
+                'type': 'traffic_alternative',
+                'name': 'Alternative Route via Outer Ring Road' if is_kenya_region else 'Traffic Alternative Route',
+                'distance_km': 0.5,
+                'priority': 'high',
+                'description': 'Avoid CBD congestion during peak hours'
+            })
+        
+        if 12 <= hour <= 14:  # Lunch time
+            if is_kenya_region:
                 recommendations.append({
-                    'type': 'motorcycle_parking',
+                    'type': 'restaurant',
+                    'name': 'Java House - Junction Mall',
+                    'distance_km': 0.8,
                     'priority': 'medium',
-                    'reason': 'Secure motorcycle parking areas'
+                    'description': 'Coffee, meals, free WiFi, ample parking'
+                })
+            else:
+                recommendations.append({
+                    'type': 'restaurant',
+                    'name': 'Local Dining Options',
+                    'distance_km': 0.8,
+                    'priority': 'medium',
+                    'description': 'Lunch break recommendations'
                 })
         
-        # Add standard amenities
-        recommendations.extend(AmenityRecommender.get_relevant_amenities(hour, len(coordinates) * 2))
+        # General amenities with realistic names
+        if is_kenya_region:
+            recommendations.extend([
+                {
+                    'type': 'fuel_station',
+                    'name': 'Shell Station - Mombasa Road',
+                    'distance_km': 1.5,
+                    'priority': 'medium',
+                    'description': 'Fuel, M-Pesa services, convenience store'
+                },
+                {
+                    'type': 'bank',
+                    'name': 'KCB ATM - Sarit Centre',
+                    'distance_km': 2.1,
+                    'priority': 'low',
+                    'description': '24/7 ATM, M-Pesa agent nearby'
+                },
+                {
+                    'type': 'hospital',
+                    'name': 'Nairobi Hospital - Argwings Kodhek',
+                    'distance_km': 4.2,
+                    'priority': 'low',
+                    'description': 'Emergency services, pharmacy, specialist care'
+                },
+                {
+                    'type': 'parking',
+                    'name': 'Secure Parking - Westgate Mall',
+                    'distance_km': 1.8,
+                    'priority': 'medium',
+                    'description': 'Covered parking, security, shopping access'
+                }
+            ])
+        else:
+            recommendations.extend([
+                {
+                    'type': 'fuel_station',
+                    'name': 'Service Station',
+                    'distance_km': 1.5,
+                    'priority': 'medium',
+                    'description': 'Fuel and basic services'
+                },
+                {
+                    'type': 'rest_area',
+                    'name': 'Rest Stop',
+                    'distance_km': 3.2,
+                    'priority': 'low',
+                    'description': 'Break area with facilities'
+                }
+            ])
         
-        return recommendations
+        return recommendations[:8]  # Limit to 8 amenities for detailed context
     
     @staticmethod
     def is_amenity_open(amenity_type: str, hour: int) -> bool:

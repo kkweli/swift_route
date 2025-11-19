@@ -372,6 +372,11 @@ export function RouteOptimizer() {
         const contextPrompt = buildContextPrompt(apiResponse, {
           vehicleType: parameters.vehicleType,
           optimizeFor: parameters.optimizeFor,
+          coordinates: {
+            origin: origin,
+            destination: destination,
+            waypoints: waypoints
+          }
         });
         const context = await fetchLLMInsights(contextPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),

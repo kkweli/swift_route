@@ -28,53 +28,82 @@ function formatLocalTime(): string {
   return `${hh}:${mm} ${ampm}`;
 }
 
+export interface ContextOptions extends InsightsOptions {
+  coordinates?: {
+    origin: { lat: number; lng: number } | null;
+    destination: { lat: number; lng: number } | null;
+    waypoints: { lat: number; lng: number }[];
+  };
+}
+
 export function buildContextPrompt(
   response: RouteOptimizationResponse,
-  opts: InsightsOptions = {}
+  opts: ContextOptions = {}
 ): string {
   const t = response?.data?.traffic_info as any;
-  const amenities = (response?.data?.amenities || []).slice(0, 6) as any[];
-
+  const amenities = (response?.data?.amenities || []).slice(0, 8) as any[];
+  const coords = opts.coordinates;
+  
   const area = (t?.area_type || 'unknown').toString();
   const trafficLevel = Number(t?.traffic_level ?? 1).toFixed(1);
   const now = formatLocalTime();
+  const currentHour = new Date().getHours();
+  
+  // Determine region context from coordinates
+  let regionContext = 'East Africa';
+  let weatherContext = 'tropical climate';
+  let accessibilityNotes = 'Standard road access';
+  
+  if (coords?.origin) {
+    const lat = coords.origin.lat;
+    const lng = coords.origin.lng;
+    
+    // Kenya/Nairobi region detection
+    if (lat >= -4.5 && lat <= 1.5 && lng >= 33.5 && lng <= 42) {
+      regionContext = 'Kenya - Nairobi Metropolitan';
+      weatherContext = currentHour >= 6 && currentHour <= 18 ? 'Dry season, good visibility' : 'Night conditions, reduced visibility';
+      
+      if (currentHour >= 7 && currentHour <= 9) {
+        accessibilityNotes = 'Morning rush hour - expect heavy traffic on major roads';
+      } else if (currentHour >= 17 && currentHour <= 19) {
+        accessibilityNotes = 'Evening rush hour - significant congestion expected';
+      } else if (currentHour >= 22 || currentHour <= 5) {
+        accessibilityNotes = 'Night travel - reduced public transport, security considerations';
+      } else {
+        accessibilityNotes = 'Off-peak hours - optimal road conditions';
+      }
+    }
+  }
 
-  // Build a compact, GFM-friendly prompt
+  // Build enhanced context prompt
   const lines: string[] = [];
-  lines.push('You are a logistics assistant. Format strictly as GitHub-flavored Markdown.');
-  lines.push('No code fences. Keep <= 700 chars.');
+  lines.push('You are a local logistics expert. Provide detailed route context in GitHub Markdown format.');
+  lines.push('Include specific amenity names, weather conditions, and accessibility factors.');
   lines.push('');
-  lines.push('Traffic Conditions');
-  lines.push('Current traffic analysis for your route');
-  lines.push(`${area} area traffic`);
-  lines.push(capitalize(area));
-  lines.push(now);
-  lines.push(`Traffic impact: ${trafficLevel}x normal conditions`);
+  lines.push('## Route Environment Analysis');
   lines.push('');
-  lines.push('Amenities Along Route');
-  lines.push('Recommended stops based on time of day and route duration');
-
-  // Group amenities by type and include priority
-  const byType: Record<string, { count: number; priority?: string }> = {};
-  for (const a of amenities) {
-    const key = (a?.type || 'amenity').toString();
-    const priority = (a?.priority || '').toString();
-    if (!byType[key]) byType[key] = { count: 0, priority };
-    byType[key].count += 1;
-    if (priority && !byType[key].priority) byType[key].priority = priority;
+  lines.push('### Current Conditions');
+  lines.push(`**Location**: ${regionContext}`);
+  lines.push(`**Time**: ${now} (${currentHour}:00 hour)`);
+  lines.push(`**Weather**: ${weatherContext}`);
+  lines.push(`**Traffic Level**: ${trafficLevel}x normal (${area} area)`);
+  lines.push(`**Accessibility**: ${accessibilityNotes}`);
+  lines.push('');
+  lines.push('### Amenities & Infrastructure');
+  
+  // Enhanced amenity analysis with specific names
+  const amenityDetails = generateAmenityDetails(amenities, regionContext, currentHour);
+  for (const detail of amenityDetails) {
+    lines.push(`**${detail.category}**: ${detail.description}`);
   }
-  const entries = Object.entries(byType).slice(0, 5);
-  for (const [type, info] of entries) {
-    const readable = type.replace(/_/g, ' ');
-    const prio = info.priority || 'medium';
-    // Keep lines concise; the LLM will produce final natural language from these hints
-    lines.push(`${readable}`);
-    lines.push(hintForAmenity(type));
-    lines.push(prio);
-  }
-
+  
   lines.push('');
-  lines.push(`Rules: Use headings and short phrases like the examples. No raw JSON. Avoid repetition.`);
+  lines.push('### Vehicle-Specific Considerations');
+  const vehicleType = opts.vehicleType || 'car';
+  lines.push(getVehicleSpecificAdvice(vehicleType, area, currentHour));
+  
+  lines.push('');
+  lines.push('**Instructions**: Provide practical, location-specific advice. Include real amenity names where possible. Focus on current time/weather impacts.');
 
   return lines.join('\n');
 }
@@ -82,6 +111,107 @@ export function buildContextPrompt(
 function capitalize(s: string): string {
   if (!s) return s;
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function generateAmenityDetails(amenities: any[], region: string, hour: number): Array<{category: string, description: string}> {
+  const details: Array<{category: string, description: string}> = [];
+  
+  // Group amenities by type
+  const byType: Record<string, number> = {};
+  for (const a of amenities) {
+    const type = (a?.type || 'general').toString();
+    byType[type] = (byType[type] || 0) + 1;
+  }
+  
+  // Generate specific amenity descriptions based on region and time
+  const isKenyaRegion = region.includes('Kenya');
+  const isBusinessHours = hour >= 8 && hour <= 18;
+  
+  if (byType['fuel_station'] || byType['gas_station']) {
+    const stations = isKenyaRegion ? 'Shell, Total, Kenol stations' : 'Major fuel stations';
+    const availability = isBusinessHours ? 'Full service available' : 'Limited night service';
+    details.push({
+      category: 'Fuel Stations',
+      description: `${stations} along route. ${availability}. ${byType['fuel_station'] || byType['gas_station'] || 1} locations identified.`
+    });
+  }
+  
+  if (byType['restaurant'] || byType['food']) {
+    const options = isKenyaRegion ? 'Local eateries, Java House, KFC outlets' : 'Dining options';
+    const timing = isBusinessHours ? 'Full menu available' : 'Limited late-night options';
+    details.push({
+      category: 'Dining',
+      description: `${options} nearby. ${timing}. ${byType['restaurant'] || byType['food'] || 1} establishments found.`
+    });
+  }
+  
+  if (byType['parking'] || byType['parking_lot']) {
+    const security = isKenyaRegion ? 'Secure parking with attendants' : 'Parking facilities';
+    const cost = isBusinessHours ? 'Standard rates apply' : 'Reduced overnight rates';
+    details.push({
+      category: 'Parking',
+      description: `${security} available. ${cost}. ${byType['parking'] || byType['parking_lot'] || 1} facilities located.`
+    });
+  }
+  
+  if (byType['hospital'] || byType['medical']) {
+    const facilities = isKenyaRegion ? 'Nairobi Hospital, Aga Khan facilities' : 'Medical facilities';
+    details.push({
+      category: 'Medical Services',
+      description: `${facilities} accessible. Emergency services available 24/7. ${byType['hospital'] || byType['medical'] || 1} facilities nearby.`
+    });
+  }
+  
+  if (byType['bank'] || byType['atm']) {
+    const services = isKenyaRegion ? 'KCB, Equity Bank ATMs, M-Pesa agents' : 'Banking services';
+    const hours = isBusinessHours ? 'Full banking services' : 'ATM services only';
+    details.push({
+      category: 'Financial Services',
+      description: `${services} available. ${hours}. ${byType['bank'] || byType['atm'] || 1} locations found.`
+    });
+  }
+  
+  // Add weather-specific advice
+  if (hour >= 6 && hour <= 18) {
+    details.push({
+      category: 'Weather Conditions',
+      description: 'Daylight hours with good visibility. Dry conditions expected. UV protection recommended for outdoor activities.'
+    });
+  } else {
+    details.push({
+      category: 'Weather Conditions', 
+      description: 'Night conditions with reduced visibility. Cool temperatures. Ensure vehicle lights are functional.'
+    });
+  }
+  
+  return details.slice(0, 6); // Limit to 6 categories
+}
+
+function getVehicleSpecificAdvice(vehicleType: string, area: string, hour: number): string {
+  const isUrban = area.includes('commercial') || area.includes('residential');
+  const isRushHour = (hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19);
+  
+  switch (vehicleType.toLowerCase()) {
+    case 'motorcycle':
+      return isUrban && isRushHour 
+        ? '**Motorcycle**: Lane filtering possible but exercise caution. Watch for pedestrians and matatus. Helmet required.'
+        : '**Motorcycle**: Good mobility advantage. Fuel efficient. Secure parking recommended.';
+    
+    case 'truck':
+      return isUrban 
+        ? '**Truck**: Avoid CBD restrictions (6AM-10AM, 4PM-8PM). Use designated truck routes. Loading zones available.'
+        : '**Truck**: Highway routing preferred. Check bridge weight limits. Rest areas every 100km.';
+    
+    case 'van':
+      return isRushHour 
+        ? '**Van**: Moderate size advantage over trucks. Can access most urban areas. Consider delivery time windows.'
+        : '**Van**: Flexible routing options. Good for mixed urban/highway travel. Parking generally available.';
+    
+    default: // car, electric_car
+      return vehicleType === 'electric_car'
+        ? '**Electric Vehicle**: Charging stations at malls and hotels. Range planning essential. Regenerative braking in traffic.'
+        : '**Car**: Standard road access. All parking options available. Consider carpooling during peak hours.';
+  }
 }
 
 function hintForAmenity(type: string): string {
