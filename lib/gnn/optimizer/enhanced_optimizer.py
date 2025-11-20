@@ -125,9 +125,14 @@ class EnhancedOptimizer:
                 'avoid_route': traffic_multiplier > 1.5
             }
 
+            # Get realistic amenities based on actual route coordinates
             amenities = self.amenity_recommender.get_contextual_amenities(
                 optimized_route.coordinates, vehicle_profile, current_hour
             )
+            
+            # Add route-specific context to amenities
+            route_context = self._analyze_route_for_amenities(optimized_route.coordinates, current_hour)
+            amenities.extend(route_context)
 
             processing_time = int((time.time() - start_time) * 1000)
 
@@ -1080,6 +1085,107 @@ class EnhancedOptimizer:
         }
 
         return geopolitical_factors
+    
+    def _analyze_route_for_amenities(self, coordinates: List[Tuple[float, float]], hour: int) -> List[Dict[str, Any]]:
+        """Analyze route coordinates to provide realistic amenity context"""
+        if not coordinates or len(coordinates) < 2:
+            return []
+        
+        route_amenities = []
+        
+        # Calculate route characteristics
+        start_point = coordinates[0]
+        end_point = coordinates[-1]
+        mid_point = coordinates[len(coordinates) // 2]
+        
+        # Determine if route passes through known areas (Kenya focus)
+        is_kenya = (-4.5 <= start_point[0] <= 1.5 and 33.5 <= start_point[1] <= 42)
+        
+        if is_kenya:
+            # Check if route passes through major Kenyan cities/areas
+            nairobi_cbd = (-1.300, 36.820)
+            westlands = (-1.270, 36.810)
+            karen = (-1.320, 36.685)
+            thika_road = (-1.220, 36.890)
+            
+            # Check proximity to major areas
+            for point in [start_point, mid_point, end_point]:
+                # Near Nairobi CBD
+                if self._is_near_point(point, nairobi_cbd, 0.05):
+                    route_amenities.append({
+                        'type': 'urban_center',
+                        'name': 'Nairobi CBD Area',
+                        'distance_km': 0.2,
+                        'priority': 'high',
+                        'description': 'Banks, restaurants, parking restrictions 6AM-10AM & 4PM-8PM'
+                    })
+                
+                # Near Westlands
+                elif self._is_near_point(point, westlands, 0.03):
+                    route_amenities.append({
+                        'type': 'commercial_hub',
+                        'name': 'Westlands Commercial District',
+                        'distance_km': 0.5,
+                        'priority': 'medium',
+                        'description': 'Sarit Centre, Westgate Mall, numerous dining options'
+                    })
+                
+                # Near Karen
+                elif self._is_near_point(point, karen, 0.04):
+                    route_amenities.append({
+                        'type': 'residential_area',
+                        'name': 'Karen Residential Area',
+                        'distance_km': 1.0,
+                        'priority': 'low',
+                        'description': 'Upmarket area, Karen Hospital, shopping centers'
+                    })
+                
+                # Near Thika Road
+                elif self._is_near_point(point, thika_road, 0.02):
+                    route_amenities.append({
+                        'type': 'highway_corridor',
+                        'name': 'Thika Superhighway Corridor',
+                        'distance_km': 0.8,
+                        'priority': 'medium',
+                        'description': 'Major highway with service stations, malls, fast food'
+                    })
+        
+        # Add time-specific route context
+        if 7 <= hour <= 9:
+            route_amenities.append({
+                'type': 'traffic_advisory',
+                'name': 'Morning Rush Hour Alert',
+                'distance_km': 0.0,
+                'priority': 'high',
+                'description': 'Heavy traffic expected. Consider departing before 7AM or after 9AM'
+            })
+        elif 17 <= hour <= 19:
+            route_amenities.append({
+                'type': 'traffic_advisory', 
+                'name': 'Evening Rush Hour Alert',
+                'distance_km': 0.0,
+                'priority': 'high',
+                'description': 'Peak congestion period. Alternative routes recommended'
+            })
+        
+        # Add route-length specific amenities
+        route_distance = self._calculate_route_distance(coordinates)
+        if route_distance > 50:  # Long distance route
+            route_amenities.append({
+                'type': 'long_distance_advisory',
+                'name': 'Long Distance Route Services',
+                'distance_km': route_distance / 2,
+                'priority': 'medium',
+                'description': f'{route_distance:.1f}km route - plan fuel stops every 100km, rest breaks every 2 hours'
+            })
+        
+        return route_amenities[:4]  # Limit to 4 additional context items
+    
+    def _is_near_point(self, point1: Tuple[float, float], point2: Tuple[float, float], threshold: float) -> bool:
+        """Check if two points are within threshold distance (in degrees)"""
+        lat_diff = abs(point1[0] - point2[0])
+        lng_diff = abs(point1[1] - point2[1])
+        return lat_diff < threshold and lng_diff < threshold
 
     def _analyze_route_amenities(self, route_coordinates: List[Tuple[float, float]]) -> Dict[str, float]:
         """

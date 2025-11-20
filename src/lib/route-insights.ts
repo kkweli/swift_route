@@ -40,6 +40,10 @@ export function buildContextPrompt(
   response: RouteOptimizationResponse,
   opts: ContextOptions = {}
 ): string {
+  // Log amenity data for debugging
+  if (response?.data?.amenities) {
+    console.log('Amenities provided to LLM:', response.data.amenities.length, 'items');
+  }
   const t = response?.data?.traffic_info as any;
   const amenities = (response?.data?.amenities || []).slice(0, 8) as any[];
   const coords = opts.coordinates;
@@ -75,12 +79,12 @@ export function buildContextPrompt(
     }
   }
 
-  // Build enhanced context prompt
+  // Build enhanced context prompt with actual route data
   const lines: string[] = [];
-  lines.push('You are a local logistics expert. Provide route context in clean GitHub Markdown.');
-  lines.push('Use proper headings and bullet points. No HTML entities or escaped characters.');
+  lines.push('You are a local logistics expert analyzing a SPECIFIC ROUTE. Use the provided amenity data.');
+  lines.push('Provide route context in clean GitHub Markdown with proper headings and bullet points.');
   lines.push('');
-  lines.push('# Route Context Analysis');
+  lines.push('# Route Analysis');
   lines.push('');
   lines.push('## Current Conditions');
   lines.push(`- **Location**: ${regionContext}`);
@@ -89,21 +93,24 @@ export function buildContextPrompt(
   lines.push(`- **Traffic**: ${trafficLevel}x normal (${area} area)`);
   lines.push(`- **Accessibility**: ${accessibilityNotes}`);
   lines.push('');
-  lines.push('## Amenities & Infrastructure');
   
-  // Enhanced amenity analysis with specific names
-  const amenityDetails = generateAmenityDetails(amenities, regionContext, currentHour);
-  for (const detail of amenityDetails) {
-    lines.push(`- **${detail.category}**: ${detail.description}`);
+  // Only include amenities section if we have actual data
+  const amenityDetails = generateAmenityDetails(amenities, regionContext, currentHour, coords);
+  if (amenityDetails.length > 0) {
+    lines.push('## Route-Specific Amenities');
+    for (const detail of amenityDetails) {
+      lines.push(`- **${detail.category}**: ${detail.description}`);
+    }
+    lines.push('');
   }
   
-  lines.push('');
-  lines.push('## Vehicle-Specific Considerations');
+  lines.push('## Vehicle Considerations');
   const vehicleType = opts.vehicleType || 'car';
   lines.push(getVehicleSpecificAdvice(vehicleType, area, currentHour));
   
   lines.push('');
-  lines.push('**Instructions**: Provide practical advice in clean markdown. Use bullet points and proper formatting. No HTML entities.');
+  lines.push('**IMPORTANT**: Base your analysis on the specific amenity data provided above. Do not invent generic amenities.');
+  lines.push('Focus on practical, actionable advice for this exact route and time.');
 
   return lines.join('\n');
 }
@@ -113,78 +120,209 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function generateAmenityDetails(amenities: any[], region: string, hour: number): Array<{category: string, description: string}> {
+function generateAmenityDetails(amenities: any[], region: string, hour: number, coords?: {origin: {lat: number; lng: number} | null; destination: {lat: number; lng: number} | null}): Array<{category: string, description: string}> {
   const details: Array<{category: string, description: string}> = [];
   
-  // Group amenities by type
-  const byType: Record<string, number> = {};
-  for (const a of amenities) {
-    const type = (a?.type || 'general').toString();
-    byType[type] = (byType[type] || 0) + 1;
+  // If no amenities provided, return route-specific analysis
+  if (!amenities || amenities.length === 0) {
+    return generateRouteSpecificAmenities(coords, region, hour);
   }
   
-  // Generate specific amenity descriptions based on region and time
+  // Process actual amenity data from the route
+  const processedAmenities = processRealAmenities(amenities, region, hour);
+  
+  // Group by category and create descriptions
+  const categories = new Map<string, {count: number, names: string[], types: string[]}>(); 
+  
+  for (const amenity of processedAmenities) {
+    const category = amenity.category;
+    if (!categories.has(category)) {
+      categories.set(category, {count: 0, names: [], types: []});
+    }
+    const cat = categories.get(category)!;
+    cat.count++;
+    if (amenity.name && !cat.names.includes(amenity.name)) {
+      cat.names.push(amenity.name);
+    }
+    if (amenity.type && !cat.types.includes(amenity.type)) {
+      cat.types.push(amenity.type);
+    }
+  }
+  
+  // Generate specific descriptions based on actual data
+  const isBusinessHours = hour >= 8 && hour <= 18;
+  
+  for (const [category, data] of categories.entries()) {
+    const names = data.names.slice(0, 3).join(', ') || 'Various locations';
+    const timing = isBusinessHours ? 'Currently open' : 'Limited hours';
+    
+    details.push({
+      category,
+      description: `${names} (${data.count} location${data.count > 1 ? 's' : ''}). ${timing}.`
+    });
+  }
+  
+  // Add route-specific context if we have coordinates
+  if (coords?.origin && coords?.destination) {
+    const routeContext = analyzeRouteContext(coords.origin, coords.destination, hour);
+    details.push(...routeContext);
+  }
+  
+  return details.slice(0, 6);
+}
+
+function processRealAmenities(amenities: any[], region: string, hour: number): Array<{category: string, name?: string, type: string}> {
+  const processed: Array<{category: string, name?: string, type: string}> = [];
+  
+  for (const amenity of amenities) {
+    const type = (amenity.type || '').toLowerCase();
+    const name = amenity.name || amenity.brand || '';
+    
+    let category = 'General Services';
+    
+    // Map amenity types to categories
+    if (type.includes('fuel') || type.includes('gas') || type.includes('petrol')) {
+      category = 'Fuel Stations';
+    } else if (type.includes('restaurant') || type.includes('food') || type.includes('cafe')) {
+      category = 'Dining';
+    } else if (type.includes('hospital') || type.includes('clinic') || type.includes('pharmacy')) {
+      category = 'Medical Services';
+    } else if (type.includes('bank') || type.includes('atm')) {
+      category = 'Financial Services';
+    } else if (type.includes('parking') || type.includes('garage')) {
+      category = 'Parking';
+    } else if (type.includes('hotel') || type.includes('lodge')) {
+      category = 'Accommodation';
+    } else if (type.includes('shop') || type.includes('market') || type.includes('mall')) {
+      category = 'Shopping';
+    }
+    
+    processed.push({category, name, type});
+  }
+  
+  return processed;
+}
+
+function generateRouteSpecificAmenities(coords?: {origin: {lat: number; lng: number} | null; destination: {lat: number; lng: number} | null}, region: string, hour: number): Array<{category: string, description: string}> {
+  const details: Array<{category: string, description: string}> = [];
+  
+  if (!coords?.origin || !coords?.destination) {
+    return [{
+      category: 'Route Analysis',
+      description: 'No specific route coordinates available for amenity analysis.'
+    }];
+  }
+  
+  const {origin, destination} = coords;
   const isKenyaRegion = region.includes('Kenya');
   const isBusinessHours = hour >= 8 && hour <= 18;
   
-  if (byType['fuel_station'] || byType['gas_station']) {
-    const stations = isKenyaRegion ? 'Shell, Total, Kenol stations' : 'Major fuel stations';
-    const availability = isBusinessHours ? 'Full service available' : 'Limited night service';
-    details.push({
-      category: 'Fuel Stations',
-      description: `${stations} along route. ${availability}. ${byType['fuel_station'] || byType['gas_station'] || 1} locations identified.`
-    });
-  }
+  // Analyze route characteristics based on coordinates
+  const distance = calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+  const isUrbanRoute = isUrbanArea(origin, destination);
+  const routeDirection = getRouteDirection(origin, destination);
   
-  if (byType['restaurant'] || byType['food']) {
-    const options = isKenyaRegion ? 'Local eateries, Java House, KFC outlets' : 'Dining options';
-    const timing = isBusinessHours ? 'Full menu available' : 'Limited late-night options';
-    details.push({
-      category: 'Dining',
-      description: `${options} nearby. ${timing}. ${byType['restaurant'] || byType['food'] || 1} establishments found.`
-    });
-  }
-  
-  if (byType['parking'] || byType['parking_lot']) {
-    const security = isKenyaRegion ? 'Secure parking with attendants' : 'Parking facilities';
-    const cost = isBusinessHours ? 'Standard rates apply' : 'Reduced overnight rates';
-    details.push({
-      category: 'Parking',
-      description: `${security} available. ${cost}. ${byType['parking'] || byType['parking_lot'] || 1} facilities located.`
-    });
-  }
-  
-  if (byType['hospital'] || byType['medical']) {
-    const facilities = isKenyaRegion ? 'Nairobi Hospital, Aga Khan facilities' : 'Medical facilities';
-    details.push({
-      category: 'Medical Services',
-      description: `${facilities} accessible. Emergency services available 24/7. ${byType['hospital'] || byType['medical'] || 1} facilities nearby.`
-    });
-  }
-  
-  if (byType['bank'] || byType['atm']) {
-    const services = isKenyaRegion ? 'KCB, Equity Bank ATMs, M-Pesa agents' : 'Banking services';
-    const hours = isBusinessHours ? 'Full banking services' : 'ATM services only';
+  // Generate context-aware amenity predictions
+  if (isKenyaRegion) {
+    if (isUrbanRoute) {
+      details.push({
+        category: 'Fuel Stations',
+        description: `Shell, Total, Kenol stations expected along ${distance.toFixed(1)}km urban route. ${isBusinessHours ? 'Full service available' : 'Limited night service'}.`
+      });
+      
+      details.push({
+        category: 'Dining',
+        description: `Java House, KFC, local eateries likely available. ${isBusinessHours ? 'Full menu options' : 'Limited late-night dining'}.`
+      });
+    } else {
+      details.push({
+        category: 'Highway Services',
+        description: `Highway route with service stations every 50-80km. Plan fuel stops accordingly.`
+      });
+    }
+    
     details.push({
       category: 'Financial Services',
-      description: `${services} available. ${hours}. ${byType['bank'] || byType['atm'] || 1} locations found.`
+      description: `KCB, Equity Bank ATMs, M-Pesa agents available. ${isBusinessHours ? 'Full banking services' : 'ATM services only'}.`
     });
   }
   
-  // Add weather-specific advice
+  // Add time-specific context
   if (hour >= 6 && hour <= 18) {
     details.push({
-      category: 'Weather Conditions',
-      description: 'Daylight hours with good visibility. Dry conditions expected. UV protection recommended for outdoor activities.'
+      category: 'Travel Conditions',
+      description: `Daylight travel with good visibility. Most services operational along ${routeDirection} route.`
     });
   } else {
     details.push({
-      category: 'Weather Conditions', 
-      description: 'Night conditions with reduced visibility. Cool temperatures. Ensure vehicle lights are functional.'
+      category: 'Travel Conditions',
+      description: `Night travel - reduced service availability. Ensure adequate fuel and plan rest stops.`
     });
   }
   
-  return details.slice(0, 6); // Limit to 6 categories
+  return details;
+}
+
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng/2) * Math.sin(dLng/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+function isUrbanArea(origin: {lat: number; lng: number}, destination: {lat: number; lng: number}): boolean {
+  // Kenya urban area detection (Nairobi, Mombasa, Kisumu)
+  const urbanCenters = [
+    {lat: -1.2921, lng: 36.8219, radius: 0.3}, // Nairobi
+    {lat: -4.0435, lng: 39.6682, radius: 0.2}, // Mombasa
+    {lat: -0.0917, lng: 34.7680, radius: 0.15}  // Kisumu
+  ];
+  
+  for (const center of urbanCenters) {
+    const originDist = calculateDistance(origin.lat, origin.lng, center.lat, center.lng);
+    const destDist = calculateDistance(destination.lat, destination.lng, center.lat, center.lng);
+    if (originDist < center.radius * 111 || destDist < center.radius * 111) { // Convert degrees to km
+      return true;
+    }
+  }
+  return false;
+}
+
+function getRouteDirection(origin: {lat: number; lng: number}, destination: {lat: number; lng: number}): string {
+  const latDiff = destination.lat - origin.lat;
+  const lngDiff = destination.lng - origin.lng;
+  
+  if (Math.abs(latDiff) > Math.abs(lngDiff)) {
+    return latDiff > 0 ? 'northbound' : 'southbound';
+  } else {
+    return lngDiff > 0 ? 'eastbound' : 'westbound';
+  }
+}
+
+function analyzeRouteContext(origin: {lat: number; lng: number}, destination: {lat: number; lng: number}, hour: number): Array<{category: string, description: string}> {
+  const context: Array<{category: string, description: string}> = [];
+  
+  const distance = calculateDistance(origin.lat, origin.lng, destination.lat, destination.lng);
+  const direction = getRouteDirection(origin, destination);
+  
+  // Traffic context based on time and direction
+  if (hour >= 7 && hour <= 9) {
+    context.push({
+      category: 'Traffic Context',
+      description: `Morning rush hour on ${direction} route. Expect 20-30% longer travel times in urban areas.`
+    });
+  } else if (hour >= 17 && hour <= 19) {
+    context.push({
+      category: 'Traffic Context', 
+      description: `Evening rush hour on ${direction} route. Heavy congestion expected, consider alternative timing.`
+    });
+  }
+  
+  return context;
 }
 
 function getVehicleSpecificAdvice(vehicleType: string, area: string, hour: number): string {
