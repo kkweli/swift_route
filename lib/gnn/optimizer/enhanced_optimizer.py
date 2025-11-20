@@ -91,39 +91,55 @@ class EnhancedOptimizer:
         try:
             profile = self._map_vehicle_to_profile(vehicle_profile)
 
-            # Get all OSRM routes (baseline + alternatives) in one call
-            osrm_response = self.osrm_client.get_route(
+            # Get baseline route (shortest distance)
+            baseline_response = self.osrm_client.get_route(
+                origin=origin,
+                destination=destination,
+                profile=profile,
+                alternatives=False,
+                steps=False,
+                geometries="geojson",
+                continue_straight=True  # Force straight/simple route
+            )
+            
+            if not baseline_response.get('routes'):
+                return None
+            
+            baseline_route = self._transform_osrm_route_baseline(
+                baseline_response['routes'][0], 
+                vehicle_profile
+            )
+            baseline_route.algorithm_used = "baseline_shortest"
+            
+            # Get optimized routes with alternatives
+            optimized_response = self.osrm_client.get_route(
                 origin=origin,
                 destination=destination,
                 profile=profile,
                 alternatives=True,
                 steps=True,
                 geometries="geojson",
-                continue_straight=False
+                continue_straight=False  # Allow variations
             )
             
-            routes = osrm_response.get('routes', [])
-            if not routes:
+            opt_routes = optimized_response.get('routes', [])
+            if not opt_routes:
                 return None
             
-            # First route is baseline (fastest by default)
-            baseline_route = self._transform_osrm_route_baseline(routes[0], vehicle_profile)
+            # Select best route based on optimization criteria
+            best_route_dict = self._select_best_osrm_route(opt_routes, vehicle_profile, optimization_criteria)
+            optimized_route = self._transform_osrm_route_baseline(best_route_dict, vehicle_profile)
+            optimized_route.algorithm_used = f"optimized_{optimization_criteria}"
             
-            # Select optimized route based on criteria from alternatives
-            if len(routes) > 1:
-                optimized_route = self._select_best_osrm_route(routes[1:], vehicle_profile, optimization_criteria)
-                optimized_route = self._transform_osrm_route_baseline(optimized_route, vehicle_profile)
-            else:
-                # If no alternatives, use baseline as optimized
-                optimized_route = baseline_route
-            
-            # Get remaining alternatives
+            # Get remaining alternatives (exclude the one we selected)
             alternatives = []
-            for i, route in enumerate(routes[1:num_alternatives+1]):
-                if i == 0 and len(routes) > 1:
-                    continue  # Skip the one we used as optimized
-                alt = self._transform_osrm_route_baseline(route, vehicle_profile)
-                alternatives.append(alt)
+            for route_dict in opt_routes:
+                if route_dict != best_route_dict:
+                    alt = self._transform_osrm_route_baseline(route_dict, vehicle_profile)
+                    alt.algorithm_used = f"alternative_{len(alternatives)}"
+                    alternatives.append(alt)
+                    if len(alternatives) >= num_alternatives:
+                        break
 
             # Calculate meaningful improvements
             improvements = {
@@ -226,18 +242,40 @@ class EnhancedOptimizer:
     def _select_best_osrm_route(self, routes: List[Dict], vehicle_profile: VehicleProfile, criteria: str) -> Dict:
         """Select best OSRM route based on optimization criteria"""
         if not routes:
-            return routes[0] if routes else {}
+            return {}
         
-        best_route = routes[0]
-        best_score = float('inf')
+        if len(routes) == 1:
+            return routes[0]
         
+        # Score all routes
+        scored = []
         for route in routes:
             score = self._calculate_route_score(route, vehicle_profile, criteria)
-            if score < best_score:
-                best_score = score
-                best_route = route
+            scored.append((score, route))
         
-        return best_route
+        # Sort by score (lower is better)
+        scored.sort(key=lambda x: x[0])
+        
+        # Return best route that's meaningfully different from first
+        best = scored[0][1]
+        
+        # If optimizing for time, prefer routes with lower duration
+        if criteria == 'time' and len(scored) > 1:
+            first_time = routes[0].get('duration', 0)
+            for score, route in scored:
+                route_time = route.get('duration', 0)
+                if route_time < first_time * 0.95:  # At least 5% faster
+                    return route
+        
+        # If optimizing for distance, prefer routes with lower distance
+        elif criteria == 'distance' and len(scored) > 1:
+            first_dist = routes[0].get('distance', 0)
+            for score, route in scored:
+                route_dist = route.get('distance', 0)
+                if route_dist < first_dist * 0.95:  # At least 5% shorter
+                    return route
+        
+        return best
     
     def _create_synthetic_optimized_route_DEPRECATED(self, baseline: RouteResult, criteria: str, vehicle_profile: VehicleProfile) -> RouteResult:
         """Create synthetic optimized route with meaningful improvements"""

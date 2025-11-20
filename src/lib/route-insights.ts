@@ -40,10 +40,6 @@ export function buildContextPrompt(
   response: RouteOptimizationResponse,
   opts: ContextOptions = {}
 ): string {
-  // Log amenity data for debugging
-  if (response?.data?.amenities) {
-    console.log('Amenities provided to LLM:', response.data.amenities.length, 'items');
-  }
   const t = response?.data?.traffic_info as any;
   const amenities = (response?.data?.amenities || []).slice(0, 8) as any[];
   const coords = opts.coordinates;
@@ -79,38 +75,44 @@ export function buildContextPrompt(
     }
   }
 
-  // Build enhanced context prompt with actual route data
-  const lines: string[] = [];
-  lines.push('You are a local logistics expert analyzing a SPECIFIC ROUTE. Use the provided amenity data.');
-  lines.push('Provide route context in clean GitHub Markdown with proper headings and bullet points.');
-  lines.push('');
-  lines.push('# Route Analysis');
-  lines.push('');
-  lines.push('## Current Conditions');
-  lines.push(`- **Location**: ${regionContext}`);
-  lines.push(`- **Time**: ${now} (${currentHour}:00 hour)`);
-  lines.push(`- **Weather**: ${weatherContext}`);
-  lines.push(`- **Traffic**: ${trafficLevel}x normal (${area} area)`);
-  lines.push(`- **Accessibility**: ${accessibilityNotes}`);
-  lines.push('');
+  // Extract route details for location-specific analysis
+  const optimized = response?.data?.optimized_route;
+  const baseline = response?.data?.baseline_route;
+  const improvements = response?.data?.improvements;
   
-  // Only include amenities section if we have actual data
-  const amenityDetails = generateAmenityDetails(amenities, regionContext, currentHour, coords);
-  if (amenityDetails.length > 0) {
-    lines.push('## Route-Specific Amenities');
-    for (const detail of amenityDetails) {
-      lines.push(`- **${detail.category}**: ${detail.description}`);
-    }
-    lines.push('');
+  // Build location-aware context
+  const lines: string[] = [];
+  lines.push(`ROUTE ANALYSIS REQUEST`);
+  lines.push(`You are analyzing a ${(optimized?.distance || 0).toFixed(1)}km route in ${regionContext}.`);
+  lines.push(`Current time: ${now} (${currentHour}:00 hour). Traffic: ${trafficLevel}x normal in ${area} area.`);
+  lines.push(``);
+  lines.push(`ROUTE PERFORMANCE:`);
+  lines.push(`- Baseline: ${(baseline?.distance || 0).toFixed(1)}km, ${(baseline?.estimated_time || 0).toFixed(0)} min`);
+  lines.push(`- Optimized: ${(optimized?.distance || 0).toFixed(1)}km, ${(optimized?.estimated_time || 0).toFixed(0)} min`);
+  lines.push(`- Savings: ${(improvements?.distance_saved || 0).toFixed(1)}km, ${(improvements?.time_saved || 0).toFixed(0)} min`);
+  lines.push(``);
+  
+  // Add specific amenities if available
+  if (amenities && amenities.length > 0) {
+    lines.push(`AMENITIES ALONG ROUTE:`);
+    amenities.slice(0, 5).forEach((a: any) => {
+      const name = a.name || a.type || 'Location';
+      const desc = a.description || '';
+      lines.push(`- ${name}: ${desc}`);
+    });
+    lines.push(``);
   }
   
-  lines.push('## Vehicle Considerations');
-  const vehicleType = opts.vehicleType || 'car';
-  lines.push(getVehicleSpecificAdvice(vehicleType, area, currentHour));
-  
-  lines.push('');
-  lines.push('**IMPORTANT**: Base your analysis on the specific amenity data provided above. Do not invent generic amenities.');
-  lines.push('Focus on practical, actionable advice for this exact route and time.');
+  lines.push(`VEHICLE: ${opts.vehicleType || 'car'}`);
+  lines.push(`OPTIMIZATION: ${opts.optimizeFor || 'time'}`);
+  lines.push(``);
+  lines.push(`Provide specific, actionable insights about THIS route. Include:`);
+  lines.push(`1. Why this route is optimal for ${opts.optimizeFor || 'time'}`);
+  lines.push(`2. Specific landmarks/areas along the route`);
+  lines.push(`3. Time-of-day considerations (current: ${currentHour}:00)`);
+  lines.push(`4. Vehicle-specific advice for ${opts.vehicleType || 'car'}`);
+  lines.push(``);
+  lines.push(`Format as clean markdown. Be specific to ${regionContext}, not generic.`);
 
   return lines.join('\n');
 }
@@ -385,81 +387,47 @@ export function buildInsightsPrompt(
     co2_saved: 0,
   };
 
-  const header = `You are a logistics routing analyst. Provide concise, actionable insights in bullets (<= 700 chars). Focus on ${
-    opts.optimizeFor || 'time'
-  } for a ${opts.vehicleType || 'car'}.`;
+  // Calculate meaningful differences
+  const timeDiff = ((baseline.estimated_time - optimized.estimated_time) / baseline.estimated_time * 100).toFixed(1);
+  const distDiff = ((baseline.distance - optimized.distance) / baseline.distance * 100).toFixed(1);
+  const hasMeaningfulDiff = Math.abs(parseFloat(timeDiff)) > 2 || Math.abs(parseFloat(distDiff)) > 2;
 
-  const baselineLine = `Baseline: ${round(baseline.distance, 2)} km, ${round(
-    baseline.estimated_time,
-    2
-  )} min, ${round(baseline.cost, 2)} cost, ${round(
-    baseline.co2_emissions,
-    2
-  )} kg CO2 (algo=${baseline.algorithm_used})`;
+  const prompt = `ROUTE OPTIMIZATION ANALYSIS
 
-  const optimizedLine = `Optimized: ${round(optimized.distance, 2)} km, ${round(
-    optimized.estimated_time,
-    2
-  )} min, ${round(optimized.cost, 2)} cost, ${round(
-    optimized.co2_emissions,
-    2
-  )} kg CO2 (algo=${optimized.algorithm_used})`;
+VEHICLE: ${opts.vehicleType || 'car'}
+OPTIMIZATION GOAL: ${opts.optimizeFor || 'time'}
 
-  const altLines = alternatives
-    .slice(0, 3)
-    .map(
-      (r, i) =>
-        `Alt${i + 1}: ${round(r.distance, 2)} km, ${round(r.estimated_time, 2)} min, ${round(
-          r.cost,
-          2
-        )} cost, ${round(r.co2_emissions, 2)} kg CO2 (algo=${r.algorithm_used})`
-    )
-    .join('\n');
+ROUTE COMPARISON:
+Baseline: ${round(baseline.distance, 1)}km, ${round(baseline.estimated_time, 0)}min, $${round(baseline.cost, 2)}
+Optimized: ${round(optimized.distance, 1)}km, ${round(optimized.estimated_time, 0)}min, $${round(optimized.cost, 2)}
+Difference: ${timeDiff}% time, ${distDiff}% distance
 
-  const improvementsLine = `Improvements vs baseline: -${round(
-    imp.distance_saved,
-    2
-  )} km, -${round(imp.time_saved, 2)} min, -${round(imp.cost_saved, 2)} cost, -${round(
-    imp.co2_saved,
-    2
-  )} kg CO2.`;
-
-  const instructions = `
-Format as clean GitHub Markdown with proper structure:
+${alternatives.length > 0 ? `ALTERNATIVES AVAILABLE: ${alternatives.length} routes
+` : ''}${hasMeaningfulDiff ? `IMPROVEMENTS: Saved ${round(imp.time_saved, 0)}min, ${round(imp.distance_saved, 1)}km, $${round(imp.cost_saved, 2)}
+` : 'ROUTES ARE SIMILAR: Minimal difference detected
+'}
+Provide analysis in markdown:
 
 # AI Route Analysis
 
 ## Summary
-- Best route for ${opts.optimizeFor || 'time'} optimization and reasoning
+${hasMeaningfulDiff ? '- Explain WHY optimized route is better for ' + (opts.optimizeFor || 'time') : '- Explain why routes are similar and what this means'}
+- Highlight the key routing decision that creates the difference
 
 ## Trade-offs
-- Time vs cost vs emissions comparison
-- Key differences between routes
+- Compare time vs distance vs cost
+${alternatives.length > 0 ? '- When to use alternative routes' : '- Why no alternatives exist for this route'}
 
 ## Recommendation
-- Which route to choose and when
-- Specific use case guidance
+- Best route for ${opts.vehicleType || 'vehicle'} operations
+- Specific scenarios where each route excels
 
 ## Pro Tip
-- One actionable insight for ${opts.vehicleType || 'vehicle'} operations
+- Actionable advice for ${opts.vehicleType || 'vehicle'} drivers on this route
 
-Rules: Use proper headings, bullet points, no HTML entities. Keep concise but well-formatted.`;
+Be specific and data-driven. No generic advice.`;
 
-  const prompt = [
-    header,
-    '',
-    baselineLine,
-    optimizedLine,
-    altLines ? altLines : undefined,
-    improvementsLine,
-    '',
-    instructions,
-  ]
-    .filter(Boolean)
-    .join('\n');
-
-  // Enforce a hard cap to reduce latency and costs
-  return prompt.length > 1200 ? prompt.slice(0, 1200) : prompt;
+  return prompt;
 }
 
 export interface FetchLLMOptions {
