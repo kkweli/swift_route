@@ -392,6 +392,17 @@ export function buildInsightsPrompt(
   const distDiff = ((baseline.distance - optimized.distance) / baseline.distance * 100).toFixed(1);
   const hasMeaningfulDiff = Math.abs(parseFloat(timeDiff)) > 2 || Math.abs(parseFloat(distDiff)) > 2;
 
+  const altText = alternatives.length > 0 ? `ALTERNATIVES AVAILABLE: ${alternatives.length} routes` : '';
+  const improvText = hasMeaningfulDiff 
+    ? `IMPROVEMENTS: Saved ${round(imp.time_saved, 0)}min, ${round(imp.distance_saved, 1)}km, $${round(imp.cost_saved, 2)}`
+    : 'ROUTES ARE SIMILAR: Minimal difference detected';
+  const summaryText = hasMeaningfulDiff 
+    ? `Explain WHY optimized route is better for ${opts.optimizeFor || 'time'}` 
+    : 'Explain why routes are similar and what this means';
+  const tradeoffText = alternatives.length > 0 
+    ? 'When to use alternative routes' 
+    : 'Why no alternatives exist for this route';
+
   const prompt = `ROUTE OPTIMIZATION ANALYSIS
 
 VEHICLE: ${opts.vehicleType || 'car'}
@@ -402,21 +413,20 @@ Baseline: ${round(baseline.distance, 1)}km, ${round(baseline.estimated_time, 0)}
 Optimized: ${round(optimized.distance, 1)}km, ${round(optimized.estimated_time, 0)}min, $${round(optimized.cost, 2)}
 Difference: ${timeDiff}% time, ${distDiff}% distance
 
-${alternatives.length > 0 ? `ALTERNATIVES AVAILABLE: ${alternatives.length} routes
-` : ''}${hasMeaningfulDiff ? `IMPROVEMENTS: Saved ${round(imp.time_saved, 0)}min, ${round(imp.distance_saved, 1)}km, $${round(imp.cost_saved, 2)}
-` : 'ROUTES ARE SIMILAR: Minimal difference detected
-'}
+${altText}
+${improvText}
+
 Provide analysis in markdown:
 
 # AI Route Analysis
 
 ## Summary
-${hasMeaningfulDiff ? '- Explain WHY optimized route is better for ' + (opts.optimizeFor || 'time') : '- Explain why routes are similar and what this means'}
+- ${summaryText}
 - Highlight the key routing decision that creates the difference
 
 ## Trade-offs
 - Compare time vs distance vs cost
-${alternatives.length > 0 ? '- When to use alternative routes' : '- Why no alternatives exist for this route'}
+- ${tradeoffText}
 
 ## Recommendation
 - Best route for ${opts.vehicleType || 'vehicle'} operations
