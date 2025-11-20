@@ -92,7 +92,6 @@ class EnhancedOptimizer:
             profile = self._map_vehicle_to_profile(vehicle_profile)
 
             # Get all OSRM routes (baseline + alternatives) in one call
-            exclude = self._get_vehicle_exclusions(vehicle_profile)
             osrm_response = self.osrm_client.get_route(
                 origin=origin,
                 destination=destination,
@@ -100,8 +99,7 @@ class EnhancedOptimizer:
                 alternatives=True,
                 steps=True,
                 geometries="geojson",
-                continue_straight=False,
-                exclude=exclude
+                continue_straight=False
             )
             
             routes = osrm_response.get('routes', [])
