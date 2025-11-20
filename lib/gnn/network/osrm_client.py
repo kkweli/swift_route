@@ -73,12 +73,13 @@ class OSRMClient:
         url = f"{self.base_url}/route/v1/{profile}/{coords}"
         
         params = {
-            "alternatives": "3" if alternatives else "false",  # Request up to 3 alternatives
+            "alternatives": "3" if alternatives else "false",
             "steps": "true" if steps else "false",
             "geometries": geometries,
             "overview": "full",
-            "annotations": "true",
-            "continue_straight": "default" if continue_straight is None else ("true" if continue_straight else "false")
+            "annotations": "nodes,distance,duration,speed",  # Include road network nodes
+            "continue_straight": "default" if continue_straight is None else ("true" if continue_straight else "false"),
+            "exclude": exclude if exclude else ""
         }
         
         try:

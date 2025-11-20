@@ -290,7 +290,10 @@ export function RouteOptimizer() {
     setOptimizedRoute(null);
     setAlternativeRoutes([]);
     setLlmExplanation(null);
+    setLlmContextMarkdown(null);
     setApiResponse(null);
+    setIsInsightsLoading(false);
+    setIsContextLoading(false);
 
     try {
       const client = new RouteAPIClient(apiKey);
@@ -338,27 +341,40 @@ export function RouteOptimizer() {
     }
   };
 
-  // Debounced LLM insights generation
+  // Fresh LLM insights generation for each optimization
   useEffect(() => {
-    if (!apiResponse) return;
+    if (!apiResponse) {
+      setLlmExplanation(null);
+      setLlmContextMarkdown(null);
+      return;
+    }
 
+    // Clear previous insights immediately
+    setLlmExplanation(null);
+    setLlmContextMarkdown(null);
+    
     const debounceMsRaw = import.meta.env.VITE_GEMINI_DEBOUNCE_MS as unknown as string | undefined;
     const debounceMs = Math.max(0, Number(debounceMsRaw ?? '600'));
     setIsInsightsLoading(true);
     setIsContextLoading(true);
+    
     const tid = setTimeout(async () => {
       try {
         const timeoutEnv = import.meta.env.VITE_GEMINI_TIMEOUT_MS as unknown as string | undefined;
         const modelEnv = import.meta.env.VITE_GEMINI_MODEL as unknown as string | undefined;
 
+        // Generate fresh insights with current timestamp to avoid caching
+        const timestamp = Date.now();
+        
         const analysisPrompt = buildInsightsPrompt(apiResponse, {
           vehicleType: parameters.vehicleType,
           optimizeFor: parameters.optimizeFor,
-        });
+        }) + `\n\n[Request ID: ${timestamp}]`;
+        
         const analysis = await fetchLLMInsights(analysisPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),
           model: modelEnv || 'gemini-1.5-flash',
-          temperature: 0.3,
+          temperature: 0.4, // Slightly higher for more variation
           maxOutputTokens: 400,
         });
         if (analysis) setLlmExplanation(analysis);
@@ -371,23 +387,25 @@ export function RouteOptimizer() {
             destination: destination,
             waypoints: waypoints
           }
-        });
+        }) + `\n\n[Analysis ID: ${timestamp}]`;
+        
         const context = await fetchLLMInsights(contextPrompt, {
           timeoutMs: Number(timeoutEnv ?? '4000'),
           model: modelEnv || 'gemini-1.5-flash',
-          temperature: 0.3,
+          temperature: 0.4, // Slightly higher for more variation
           maxOutputTokens: 450,
         });
         if (context) setLlmContextMarkdown(context);
       } catch (e) {
-
+        console.error('LLM insights error:', e);
       } finally {
         setIsInsightsLoading(false);
         setIsContextLoading(false);
       }
     }, debounceMs);
+    
     return () => clearTimeout(tid);
-  }, [apiResponse, parameters.vehicleType, parameters.optimizeFor]);
+  }, [apiResponse, parameters.vehicleType, parameters.optimizeFor, origin, destination, waypoints]);
 
   const summarizeAmenities = useCallback(() => {
     const amenities = apiResponse?.data?.amenities || [];

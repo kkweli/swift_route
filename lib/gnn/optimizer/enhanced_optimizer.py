@@ -91,18 +91,41 @@ class EnhancedOptimizer:
         try:
             profile = self._map_vehicle_to_profile(vehicle_profile)
 
-            # Get baseline route (simple OSRM)
-            baseline_route = self._get_baseline_route_simple(origin, destination, profile, vehicle_profile)
-            
-            # Get intelligent optimized route
-            optimized_route = self._get_intelligent_optimized_route(
-                origin, destination, vehicle_profile, optimization_criteria, baseline_route
+            # Get all OSRM routes (baseline + alternatives) in one call
+            exclude = self._get_vehicle_exclusions(vehicle_profile)
+            osrm_response = self.osrm_client.get_route(
+                origin=origin,
+                destination=destination,
+                profile=profile,
+                alternatives=True,
+                steps=True,
+                geometries="geojson",
+                continue_straight=False,
+                exclude=exclude
             )
             
-            # Generate diverse alternatives
-            alternatives = self._generate_diverse_alternatives(
-                baseline_route, optimized_route, optimization_criteria, num_alternatives
-            )
+            routes = osrm_response.get('routes', [])
+            if not routes:
+                return None
+            
+            # First route is baseline (fastest by default)
+            baseline_route = self._transform_osrm_route_baseline(routes[0], vehicle_profile)
+            
+            # Select optimized route based on criteria from alternatives
+            if len(routes) > 1:
+                optimized_route = self._select_best_osrm_route(routes[1:], vehicle_profile, optimization_criteria)
+                optimized_route = self._transform_osrm_route_baseline(optimized_route, vehicle_profile)
+            else:
+                # If no alternatives, use baseline as optimized
+                optimized_route = baseline_route
+            
+            # Get remaining alternatives
+            alternatives = []
+            for i, route in enumerate(routes[1:num_alternatives+1]):
+                if i == 0 and len(routes) > 1:
+                    continue  # Skip the one we used as optimized
+                alt = self._transform_osrm_route_baseline(route, vehicle_profile)
+                alternatives.append(alt)
 
             # Calculate meaningful improvements
             improvements = {
@@ -178,12 +201,47 @@ class EnhancedOptimizer:
         criteria: str,
         baseline: RouteResult
     ) -> RouteResult:
-        """Generate truly optimized route"""
+        """Generate truly optimized route using OSRM alternatives"""
         
-        # Create synthetic optimized route with meaningful differences
-        return self._create_synthetic_optimized_route(baseline, criteria, vehicle_profile)
+        profile = self._map_vehicle_to_profile(vehicle_profile)
+        
+        # Get OSRM alternatives with proper road network routing
+        osrm_response = self.osrm_client.get_route(
+            origin=origin,
+            destination=destination,
+            profile=profile,
+            alternatives=True,  # Get real alternative routes
+            steps=True,
+            geometries="geojson",
+            continue_straight=False
+        )
+        
+        routes = osrm_response.get('routes', [])
+        if not routes:
+            return baseline
+        
+        # Select best route based on optimization criteria
+        best_route = self._select_best_osrm_route(routes, vehicle_profile, criteria)
+        
+        return self._transform_osrm_route_baseline(best_route, vehicle_profile)
     
-    def _create_synthetic_optimized_route(self, baseline: RouteResult, criteria: str, vehicle_profile: VehicleProfile) -> RouteResult:
+    def _select_best_osrm_route(self, routes: List[Dict], vehicle_profile: VehicleProfile, criteria: str) -> Dict:
+        """Select best OSRM route based on optimization criteria"""
+        if not routes:
+            return routes[0] if routes else {}
+        
+        best_route = routes[0]
+        best_score = float('inf')
+        
+        for route in routes:
+            score = self._calculate_route_score(route, vehicle_profile, criteria)
+            if score < best_score:
+                best_score = score
+                best_route = route
+        
+        return best_route
+    
+    def _create_synthetic_optimized_route_DEPRECATED(self, baseline: RouteResult, criteria: str, vehicle_profile: VehicleProfile) -> RouteResult:
         """Create synthetic optimized route with meaningful improvements"""
         # Vehicle-specific improvements
         vehicle_type = vehicle_profile.vehicle_type.value if vehicle_profile else 'car'
@@ -295,42 +353,10 @@ class EnhancedOptimizer:
         criteria: str,
         num_alternatives: int
     ) -> List[RouteResult]:
-        """Generate diverse alternative routes"""
-        alternatives = []
-        
-        if num_alternatives >= 1:
-            # Scenic route (longer but safer)
-            scenic_coords = self._create_scenic_alternative(baseline.coordinates)
-            scenic_route = RouteResult(
-                path=[],
-                coordinates=scenic_coords,
-                distance_km=round(baseline.distance_km * 1.20, 2),
-                time_minutes=round(baseline.time_minutes * 1.12, 1),
-                cost_usd=round(baseline.cost_usd * 1.15, 2),
-                emissions_kg=round(baseline.emissions_kg * 1.20, 2),
-                confidence_score=0.88,
-                algorithm_used="scenic_alternative",
-                processing_time_ms=0
-            )
-            alternatives.append(scenic_route)
-        
-        if num_alternatives >= 2:
-            # Fast route (riskier but faster)
-            fast_coords = self._create_fast_alternative(baseline.coordinates)
-            fast_route = RouteResult(
-                path=[],
-                coordinates=fast_coords,
-                distance_km=round(baseline.distance_km * 1.05, 2),
-                time_minutes=round(baseline.time_minutes * 0.80, 1),
-                cost_usd=round(baseline.cost_usd * 0.92, 2),
-                emissions_kg=round(baseline.emissions_kg * 1.05, 2),
-                confidence_score=0.82,
-                algorithm_used="fast_alternative",
-                processing_time_ms=0
-            )
-            alternatives.append(fast_route)
-        
-        return alternatives
+        """Generate diverse alternative routes using OSRM's real alternatives"""
+        # OSRM already provides real alternative routes in the response
+        # These are returned from the initial OSRM call
+        return []  # Alternatives are now handled in the main optimize() method
     
     def _create_scenic_alternative(self, baseline_coords: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
         """Create scenic alternative route"""
@@ -1186,6 +1212,17 @@ class EnhancedOptimizer:
         lat_diff = abs(point1[0] - point2[0])
         lng_diff = abs(point1[1] - point2[1])
         return lat_diff < threshold and lng_diff < threshold
+    
+    def _get_vehicle_exclusions(self, vehicle_profile: VehicleProfile) -> str:
+        """Get OSRM exclusions based on vehicle type"""
+        vehicle_type = vehicle_profile.vehicle_type.value if vehicle_profile else 'car'
+        exclusions = []
+        
+        # Toll avoidance if specified
+        if hasattr(vehicle_profile, 'toll_sensitive') and vehicle_profile.toll_sensitive:
+            exclusions.append('toll')
+        
+        return ','.join(exclusions) if exclusions else ''
 
     def _analyze_route_amenities(self, route_coordinates: List[Tuple[float, float]]) -> Dict[str, float]:
         """
