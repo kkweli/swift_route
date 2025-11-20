@@ -444,10 +444,10 @@ export function RouteOptimizer() {
         </Badge>
       </div>
 
-      {/* Main Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Panel - Input Controls */}
-        <div className="lg:col-span-1">
+      {/* Main Layout - Mobile First */}
+      <div className="flex flex-col lg:grid lg:grid-cols-3 gap-4 lg:gap-6">
+        {/* Mobile: Map First, Desktop: Left Panel */}
+        <div className="order-2 lg:order-1 lg:col-span-1">
           <RouteInputPanel
             origin={origin}
             destination={destination}
@@ -464,9 +464,9 @@ export function RouteOptimizer() {
           />
         </div>
 
-        {/* Right Panel - Map */}
-        <div className="lg:col-span-2">
-          <div className="h-[600px] rounded-lg overflow-hidden shadow-lg">
+        {/* Mobile: Show Map First, Desktop: Right Panel */}
+        <div className="order-1 lg:order-2 lg:col-span-2">
+          <div className="h-[400px] sm:h-[500px] lg:h-[600px] rounded-lg overflow-hidden shadow-lg">
             <InteractiveMap
               origin={origin}
               destination={destination}
@@ -481,32 +481,36 @@ export function RouteOptimizer() {
         </div>
       </div>
 
-      {/* Results Section */}
+      {/* Results Section - Mobile Optimized */}
       {(baselineRoute || optimizedRoute) && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <MetricsComparison
-              baselineRoute={baselineRoute}
-              optimizedRoute={optimizedRoute}
-              alternativeRoutes={alternativeRoutes}
-              llmExplanation={llmExplanation}
-              isTrialUser={subscription.tier === 'trial'}
-              selectedRoute={selectedRoute}
-              onSelectedRouteChange={setSelectedRoute}
-            />
-            <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
+          <div className="flex flex-col xl:grid xl:grid-cols-2 gap-4 lg:gap-6">
+            <div className="order-1">
+              <MetricsComparison
+                baselineRoute={baselineRoute}
+                optimizedRoute={optimizedRoute}
+                alternativeRoutes={alternativeRoutes}
+                llmExplanation={llmExplanation}
+                isTrialUser={subscription.tier === 'trial'}
+                selectedRoute={selectedRoute}
+                onSelectedRouteChange={setSelectedRoute}
+              />
+            </div>
+            <div className="order-2">
+              <JSONOutputPanel response={apiResponse} apiKey={apiKey || undefined} />
+            </div>
           </div>
 
-          {/* AI Route Analysis */}
-          <div className="mt-6 p-6 border rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
-            <div className="flex items-center justify-between mb-4">
+          {/* AI Route Analysis - Mobile Optimized */}
+          <div className="mt-4 lg:mt-6 p-4 lg:p-6 border rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border-blue-200 dark:border-blue-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
-                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg flex-shrink-0">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100">AI Route Analysis</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-blue-900 dark:text-blue-100">AI Route Analysis</h3>
               </div>
               <div className="flex items-center gap-2">
                 {isInsightsLoading && (
@@ -519,7 +523,7 @@ export function RouteOptimizer() {
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowInsights(!showInsights)}
-                  className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                  className="border-blue-300 text-blue-700 hover:bg-blue-100 dark:border-blue-600 dark:text-blue-300 dark:hover:bg-blue-900/50 text-sm"
                 >
                   {showInsights ? 'Hide' : 'Show'} Insights
                 </Button>
@@ -557,17 +561,17 @@ export function RouteOptimizer() {
             )}
           </div>
 
-          {/* Route Context */}
-          <div className="mt-4 p-6 border rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
-            <div className="flex items-center justify-between mb-4">
+          {/* Route Context - Mobile Optimized */}
+          <div className="mt-4 p-4 lg:p-6 border rounded-xl bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg">
-                  <svg className="w-5 h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="p-2 bg-green-100 dark:bg-green-900/50 rounded-lg flex-shrink-0">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <h3 className="text-lg font-semibold text-green-900 dark:text-green-100">Route Context</h3>
+                <h3 className="text-base sm:text-lg font-semibold text-green-900 dark:text-green-100">Route Context</h3>
               </div>
               <div className="flex items-center gap-2">
                 {isContextLoading && (
@@ -580,7 +584,7 @@ export function RouteOptimizer() {
                   variant="outline" 
                   size="sm"
                   onClick={() => setShowContext(!showContext)}
-                  className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-900/50"
+                  className="border-green-300 text-green-700 hover:bg-green-100 dark:border-green-600 dark:text-green-300 dark:hover:bg-green-900/50 text-sm"
                 >
                   {showContext ? 'Hide' : 'Show'} Context
                 </Button>
