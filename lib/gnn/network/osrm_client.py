@@ -77,9 +77,8 @@ class OSRMClient:
             "steps": "true" if steps else "false",
             "geometries": geometries,
             "overview": "full",
-            "annotations": "nodes,distance,duration,speed",  # Include road network nodes
-            "continue_straight": "default" if continue_straight is None else ("true" if continue_straight else "false"),
-            "exclude": ""
+            "annotations": "nodes,distance,duration,speed",
+            "continue_straight": "default" if continue_straight is None else ("true" if continue_straight else "false")
         }
         
         try:
