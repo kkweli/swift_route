@@ -17,9 +17,6 @@ const Index = () => {
               <Link to="/pricing">Pricing</Link>
             </Button>
             <Button variant="ghost" asChild>
-              <Link to="/docs">Docs</Link>
-            </Button>
-            <Button variant="ghost" asChild>
               <Link to="/auth">Sign In</Link>
             </Button>
             <Button asChild>

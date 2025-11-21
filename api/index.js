@@ -432,6 +432,14 @@ export default async function handler(req, res) {
 
         if (error) throw error;
 
+        // Treat unpaid starter subscriptions as trial
+        if (subscription && !subscription.stripe_subscription_id && subscription.tier === 'starter') {
+          subscription.tier = 'trial';
+          subscription.requests_per_minute = 5;
+          subscription.monthly_requests_included = 100;
+          subscription.price_per_request = '0.00';
+        }
+
         const { data: usageLogs } = await supabase
           .from('usage_logs')
           .select('id')
