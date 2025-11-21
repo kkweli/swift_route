@@ -3,54 +3,311 @@
  * Complete API documentation within the dashboard
  */
 
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Code, Zap, Book, Key, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { 
+  Book, 
+  Code, 
+  Zap, 
+  Shield, 
+  Globe, 
+  Key,
+  ChevronRight,
+  ExternalLink,
+  Copy,
+  Check,
+  Menu,
+  X,
+  AlertCircle,
+  CheckCircle2
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface NavItem {
+  id: string;
+  title: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  children?: NavItem[];
+}
+
+const navigationItems: NavItem[] = [
+  {
+    id: 'getting-started',
+    title: 'Getting Started',
+    icon: Zap,
+    children: [
+      { id: 'quick-start', title: 'Quick Start' },
+      { id: 'authentication', title: 'Authentication' },
+      { id: 'first-request', title: 'First Request' }
+    ]
+  },
+  {
+    id: 'api-reference',
+    title: 'API Reference',
+    icon: Code,
+    children: [
+      { id: 'endpoints', title: 'Endpoints' },
+      { id: 'route-optimization', title: 'Route Optimization' },
+      { id: 'user-management', title: 'User Management' },
+      { id: 'usage-billing', title: 'Usage & Billing' }
+    ]
+  },
+  {
+    id: 'integration-guides',
+    title: 'Integration Guides',
+    icon: Book,
+    children: [
+      { id: 'javascript', title: 'JavaScript/Node.js' },
+      { id: 'python', title: 'Python' },
+      { id: 'react-native', title: 'React Native' },
+      { id: 'curl', title: 'cURL Examples' }
+    ]
+  },
+  {
+    id: 'testing',
+    title: 'Testing',
+    icon: Shield,
+    children: [
+      { id: 'unit-testing', title: 'Unit Testing' },
+      { id: 'integration-testing', title: 'Integration Testing' }
+    ]
+  },
+  {
+    id: 'advanced',
+    title: 'Advanced Topics',
+    icon: Globe,
+    children: [
+      { id: 'rate-limiting', title: 'Rate Limiting' },
+      { id: 'error-handling', title: 'Error Handling' },
+      { id: 'webhooks', title: 'Webhooks' },
+      { id: 'sdks', title: 'SDKs & Libraries' }
+    ]
+  }
+];
 
 export function ComprehensiveDocs() {
+  const [activeSection, setActiveSection] = useState('getting-started');
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = document.querySelectorAll('.docs-section');
+      const scrollPosition = window.scrollY + 100;
+
+      sections.forEach((section) => {
+        const element = section as HTMLElement;
+        const top = element.offsetTop;
+        const bottom = top + element.offsetHeight;
+
+        if (scrollPosition >= top && scrollPosition < bottom) {
+          setActiveSection(element.id);
+        }
+      });
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const copyToClipboard = async (text: string, id: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedCode(id);
+      setTimeout(() => setCopiedCode(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setSidebarOpen(false);
+    }
+  };
+
+  const renderNavItem = (item: NavItem, level = 0) => {
+    const isActive = activeSection === item.id || 
+      (item.children && item.children.some(child => activeSection === child.id));
+    
+    return (
+      <div key={item.id}>
+        <button
+          onClick={() => scrollToSection(item.id)}
+          className={cn(
+            "w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors text-left",
+            level === 0 ? "font-medium" : "font-normal",
+            level > 0 && "ml-4",
+            isActive 
+              ? "bg-primary/10 text-primary border-r-2 border-primary" 
+              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+          )}
+        >
+          {item.icon && <item.icon className="h-4 w-4" />}
+          <span>{item.title}</span>
+          {item.children && <ChevronRight className="h-3 w-3 ml-auto" />}
+        </button>
+        
+        {item.children && (
+          <div className="mt-1 space-y-1">
+            {item.children.map(child => renderNavItem(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const CodeBlock = ({ code, language = 'bash', id }: { code: string; language?: string; id: string }) => (
+    <div className="relative group">
+      <pre className="bg-muted/50 border rounded-lg p-4 text-sm overflow-x-auto">
+        <code className={`language-${language}`}>{code}</code>
+      </pre>
+      <Button
+        size="sm"
+        variant="ghost"
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={() => copyToClipboard(code, id)}
+      >
+        {copiedCode === id ? (
+          <Check className="h-4 w-4 text-green-500" />
+        ) : (
+          <Copy className="h-4 w-4" />
+        )}
+      </Button>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="min-h-screen bg-background">
+      <div className="mb-6">
         <h2 className="text-2xl font-bold mb-2">API Documentation</h2>
         <p className="text-muted-foreground">
           Complete guide to integrating SwiftRoute API into your applications
         </p>
       </div>
 
-      <Tabs defaultValue="quickstart" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="quickstart">Quick Start</TabsTrigger>
-          <TabsTrigger value="api-reference">API Reference</TabsTrigger>
-          <TabsTrigger value="examples">Code Examples</TabsTrigger>
-          <TabsTrigger value="postman">Postman Testing</TabsTrigger>
-          <TabsTrigger value="integration">Integration</TabsTrigger>
-        </TabsList>
+      {/* Mobile Header */}
+      <div className="lg:hidden sticky top-0 z-50 bg-background/95 backdrop-blur border-b px-4 py-3">
+        <div className="flex items-center justify-between">
+          <h1 className="font-semibold">API Documentation</h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+          >
+            {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </div>
+      </div>
 
-        {/* Quick Start */}
-        <TabsContent value="quickstart" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Zap className="h-5 w-5" />
-                Get Started in 3 Steps
-              </CardTitle>
-              <CardDescription>
-                Start making API requests in under 5 minutes
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Step 1 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                    1
-                  </div>
-                  <h3 className="text-lg font-semibold">Generate Your API Key</h3>
-                </div>
-                <p className="text-sm text-muted-foreground ml-11">
-                  Navigate to the "API Keys" tab and click "Generate New Key". Save your key securely - it won't be shown again.
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={cn(
+          "docs-sidebar w-80 bg-card border-r transition-transform duration-300 ease-in-out",
+          "lg:translate-x-0 lg:static lg:block",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed inset-y-0 left-0 z-40 lg:z-0"
+        )}>
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
+                <Code className="h-4 w-4 text-primary-foreground" />
+              </div>
+              <div>
+                <h2 className="font-semibold">SwiftRoute API</h2>
+                <p className="text-xs text-muted-foreground">v2.0 Documentation</p>
+              </div>
+            </div>
+            
+            <ScrollArea className="h-[calc(100vh-8rem)]">
+              <nav className="space-y-2">
+                {navigationItems.map(item => renderNavItem(item))}
+              </nav>
+            </ScrollArea>
+          </div>
+        </aside>
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Main Content */}
+        <main className="flex-1 container-responsive py-8 lg:py-12 max-w-4xl">
+          {/* Getting Started */}
+          <section id="getting-started" className="docs-section mb-16">
+            <div className="mb-8">
+              <h1 className="heading-responsive font-bold mb-4">SwiftRoute API Documentation</h1>
+              <p className="text-lg text-muted-foreground mb-6">
+                Complete guide to integrating AI-powered route optimization into your applications.
+                Get started in minutes with our RESTful API.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">v2.0</Badge>
+                <Badge variant="outline">REST API</Badge>
+                <Badge variant="outline">AI Powered</Badge>
+                <Badge variant="outline">Global Coverage</Badge>
+              </div>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <Zap className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle className="text-lg">Quick Start</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Get your first route optimization working in under 5 minutes
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <Shield className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle className="text-lg">Secure & Reliable</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Enterprise-grade security with 99.9% uptime SLA
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-md transition-shadow">
+                <CardHeader className="pb-3">
+                  <Globe className="h-8 w-8 text-primary mb-2" />
+                  <CardTitle className="text-lg">Global Coverage</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Works anywhere in the world with consistent quality
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Quick Start */}
+          <section id="quick-start" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">Quick Start</h2>
+            
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-3">1. Get Your API Key</h3>
+                <p className="text-muted-foreground mb-4">
+                  Sign up for a free account and generate your API key from the dashboard.
                 </p>
                 <Alert className="ml-11">
                   <AlertCircle className="h-4 w-4" />
@@ -60,17 +317,14 @@ export function ComprehensiveDocs() {
                 </Alert>
               </div>
 
-              {/* Step 2 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                    2
-                  </div>
-                  <h3 className="text-lg font-semibold">Make Your First Request</h3>
-                </div>
-                <div className="ml-11 bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                  <pre className="text-sm">
-{`curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \\
+              <div>
+                <h3 className="text-lg font-semibold mb-3">2. Make Your First Request</h3>
+                <p className="text-muted-foreground mb-4">
+                  Use cURL or your preferred HTTP client to optimize your first route:
+                </p>
+                <CodeBlock
+                  id="first-request"
+                  code={`curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \\
   -H "Content-Type: application/json" \\
   -H "X-API-Key: YOUR_API_KEY" \\
   -d '{
@@ -79,714 +333,448 @@ export function ComprehensiveDocs() {
     "vehicle_type": "car",
     "optimize_for": "time"
   }'`}
-                  </pre>
-                </div>
+                />
               </div>
 
-              {/* Step 3 */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold">
-                    3
-                  </div>
-                  <h3 className="text-lg font-semibold">Parse the Response</h3>
-                </div>
-                <p className="text-sm text-muted-foreground ml-11">
-                  The API returns optimized routes with baseline comparison, showing distance, time, cost, and CO₂ savings.
+              <div>
+                <h3 className="text-lg font-semibold mb-3">3. Handle the Response</h3>
+                <p className="text-muted-foreground mb-4">
+                  The API returns optimized routes with performance improvements:
                 </p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* API Reference */}
-        <TabsContent value="api-reference" className="space-y-6">
-          {/* Base URL */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Base URL</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <code className="bg-muted px-3 py-1 rounded text-sm">
-                https://swift-route-liard.vercel.app/api/v1
-              </code>
-            </CardContent>
-          </Card>
-
-          {/* Authentication */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                Authentication
-              </CardTitle>
-              <CardDescription>
-                All API requests require authentication via API key
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium mb-2">Header Format:</p>
-                <code className="bg-muted px-3 py-1 rounded text-sm block">
-                  X-API-Key: sk_live_your_api_key_here
-                </code>
-              </div>
-              <Alert>
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertDescription>
-                  Your API key is tied to your subscription tier and rate limits.
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-
-          {/* Optimize Route Endpoint */}
-          <Card>
-            <CardHeader>
-              <CardTitle>POST /optimize-route</CardTitle>
-              <CardDescription>
-                Optimize a route between origin and destination
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Request Parameters */}
-              <div>
-                <h4 className="font-semibold mb-3">Request Body Parameters</h4>
-                <div className="space-y-3">
-                  <div className="border-l-2 border-primary pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">origin</code>
-                      <Badge variant="destructive" className="text-xs">required</Badge>
-                      <Badge variant="outline" className="text-xs">array</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Starting point as [latitude, longitude]. Example: [-1.2921, 36.8219]
-                    </p>
-                  </div>
-
-                  <div className="border-l-2 border-primary pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">destination</code>
-                      <Badge variant="destructive" className="text-xs">required</Badge>
-                      <Badge variant="outline" className="text-xs">array</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Ending point as [latitude, longitude]. Example: [-1.2864, 36.8172]
-                    </p>
-                  </div>
-
-                  <div className="border-l-2 border-muted pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">vehicle_type</code>
-                      <Badge variant="secondary" className="text-xs">optional</Badge>
-                      <Badge variant="outline" className="text-xs">string</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Vehicle type: "car", "truck", "van", "motorcycle", "bicycle". Default: "car"
-                    </p>
-                  </div>
-
-                  <div className="border-l-2 border-muted pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">optimize_for</code>
-                      <Badge variant="secondary" className="text-xs">optional</Badge>
-                      <Badge variant="outline" className="text-xs">string</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Optimization criteria: "time", "distance", "cost", "emissions". Default: "time"
-                    </p>
-                  </div>
-
-                  <div className="border-l-2 border-muted pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">waypoints</code>
-                      <Badge variant="secondary" className="text-xs">optional</Badge>
-                      <Badge variant="outline" className="text-xs">array</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Intermediate stops as array of [lat, lng] coordinates
-                    </p>
-                  </div>
-
-                  <div className="border-l-2 border-muted pl-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <code className="text-sm font-mono">find_alternatives</code>
-                      <Badge variant="secondary" className="text-xs">optional</Badge>
-                      <Badge variant="outline" className="text-xs">boolean</Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      Whether to return alternative routes. Default: true
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Response Format */}
-              <div>
-                <h4 className="font-semibold mb-3">Response Format</h4>
-                <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                  <pre className="text-xs">
-{`{
+                <CodeBlock
+                  id="response-example"
+                  language="json"
+                  code={`{
   "data": {
-    "baseline_route": {
-      "route_id": "baseline",
-      "coordinates": [{"lat": -1.2921, "lng": 36.8219}, ...],
-      "distance": 5.2,
-      "estimated_time": 12.5,
-      "cost": 0.78,
-      "co2_emissions": 0.62,
-      "algorithm_used": "baseline_osrm"
-    },
     "optimized_route": {
-      "route_id": "optimized",
-      "coordinates": [{"lat": -1.2921, "lng": 36.8219}, ...],
-      "distance": 4.8,
-      "estimated_time": 11.2,
-      "cost": 0.72,
-      "co2_emissions": 0.58,
-      "algorithm_used": "optimized_time",
+      "distance": 4.3,
+      "estimated_time": 9.2,
+      "cost": 0.65,
+      "co2_emissions": 0.51,
       "confidence_score": 0.95
     },
     "improvements": {
-      "distance_saved": 0.4,
-      "time_saved": 1.3,
-      "cost_saved": 0.06,
-      "co2_saved": 0.04
-    },
-    "traffic_info": {
-      "current_hour_utc": 14,
-      "area_type": "commercial",
-      "traffic_level": 1.1,
-      "traffic_description": "Moderate traffic"
-    },
-    "amenities": [
-      {
-        "type": "restaurant",
-        "priority": "high",
-        "reason": "Lunch options available"
-      }
-    ]
-  },
-  "metadata": {
-    "algorithm_used": "enhanced_osrm",
-    "processing_time": 245,
-    "request_id": "req_1234567890"
+      "distance_saved": 0.9,
+      "time_saved": 3.3,
+      "cost_saved": 0.13,
+      "co2_saved": 0.11
+    }
   }
 }`}
-                  </pre>
-                </div>
+                />
               </div>
+            </div>
+          </section>
 
-              {/* Error Responses */}
-              <div>
-                <h4 className="font-semibold mb-3">Error Responses</h4>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">401</Badge>
-                    <span className="text-muted-foreground">Unauthorized - Invalid or missing API key</span>
+          {/* Authentication */}
+          <section id="authentication" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">Authentication</h2>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Key className="h-5 w-5" />
+                    API Key Authentication (Recommended)
+                  </CardTitle>
+                  <CardDescription>
+                    Use API keys for server-to-server communication
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <h4 className="font-medium mb-2">Header Format</h4>
+                    <CodeBlock
+                      id="api-key-header"
+                      code="X-API-Key: sk_live_your_key_here"
+                    />
                   </div>
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">429</Badge>
-                    <span className="text-muted-foreground">Rate Limit Exceeded - Too many requests</span>
-                  </div>
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">500</Badge>
-                    <span className="text-muted-foreground">Server Error - Route optimization failed</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Rate Limits */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Rate Limits</CardTitle>
-              <CardDescription>
-                Request limits based on your subscription tier
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="font-medium">Trial</span>
-                  <span className="text-muted-foreground">5 requests/minute, 100/month</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="font-medium">Starter</span>
-                  <span className="text-muted-foreground">10 requests/minute, 1,000/month</span>
-                </div>
-                <div className="flex justify-between items-center py-2 border-b">
-                  <span className="font-medium">Professional</span>
-                  <span className="text-muted-foreground">50 requests/minute, 10,000/month</span>
-                </div>
-                <div className="flex justify-between items-center py-2">
-                  <span className="font-medium">Enterprise</span>
-                  <span className="text-muted-foreground">200 requests/minute, 100,000/month</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Code Examples */}
-        <TabsContent value="examples" className="space-y-6">
-          {/* JavaScript/Node.js */}
-          <Card>
-            <CardHeader>
-              <CardTitle>JavaScript / Node.js</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                <pre className="text-sm">
-{`const axios = require('axios');
-
-const optimizeRoute = async () => {
-  try {
-    const response = await axios.post(
-      'https://swift-route-liard.vercel.app/api/v1/optimize-route',
-      {
-        origin: [-1.2921, 36.8219],
-        destination: [-1.2864, 36.8172],
-        vehicle_type: 'car',
-        optimize_for: 'time'
-      },
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.SWIFTROUTE_API_KEY
-        }
-      }
-    );
-    
-    console.log('Optimized Route:', response.data);
-    console.log('Distance Saved:', response.data.data.improvements.distance_saved, 'km');
-    console.log('Time Saved:', response.data.data.improvements.time_saved, 'min');
-  } catch (error) {
-    console.error('Error:', error.response?.data || error.message);
-  }
+                  
+                  <div>
+                    <h4 className="font-medium mb-2">JavaScript Example</h4>
+                    <CodeBlock
+                      id="js-auth"
+                      language="javascript"
+                      code={`const headers = {
+  'Content-Type': 'application/json',
+  'X-API-Key': 'sk_live_your_key_here'
 };
 
-optimizeRoute();`}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Python */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Python</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                <pre className="text-sm">
-{`import requests
-import os
-
-def optimize_route():
-    url = 'https://swift-route-liard.vercel.app/api/v1/optimize-route'
-    headers = {
-        'Content-Type': 'application/json',
-        'X-API-Key': os.environ.get('SWIFTROUTE_API_KEY')
-    }
-    payload = {
-        'origin': [-1.2921, 36.8219],
-        'destination': [-1.2864, 36.8172],
-        'vehicle_type': 'car',
-        'optimize_for': 'time'
-    }
-    
-    response = requests.post(url, json=payload, headers=headers)
-    
-    if response.status_code == 200:
-        data = response.json()
-        print(f"Distance Saved: {data['data']['improvements']['distance_saved']} km")
-        print(f"Time Saved: {data['data']['improvements']['time_saved']} min")
-        print(f"CO2 Saved: {data['data']['improvements']['co2_saved']} kg")
-    else:
-        print(f"Error: {response.status_code} - {response.text}")
-
-optimize_route()`}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* PHP */}
-          <Card>
-            <CardHeader>
-              <CardTitle>PHP</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto">
-                <pre className="text-sm">
-{`<?php
-
-$apiKey = getenv('SWIFTROUTE_API_KEY');
-$url = 'https://swift-route-liard.vercel.app/api/v1/optimize-route';
-
-$data = [
-    'origin' => [-1.2921, 36.8219],
-    'destination' => [-1.2864, 36.8172],
-    'vehicle_type' => 'car',
-    'optimize_for' => 'time'
-];
-
-$options = [
-    'http' => [
-        'header' => [
-            'Content-Type: application/json',
-            'X-API-Key: ' . $apiKey
-        ],
-        'method' => 'POST',
-        'content' => json_encode($data)
-    ]
-];
-
-$context = stream_context_create($options);
-$result = file_get_contents($url, false, $context);
-$response = json_decode($result, true);
-
-echo "Distance Saved: " . $response['data']['improvements']['distance_saved'] . " km\\n";
-echo "Time Saved: " . $response['data']['improvements']['time_saved'] . " min\\n";
-
-?>`}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Postman Testing */}
-        <TabsContent value="postman" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Testing with Postman</CardTitle>
-              <CardDescription>
-                Step-by-step guide to test SwiftRoute API using Postman
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Method 1: Using API Key */}
-              <div>
-                <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Method 1: Using API Key (Recommended)
-                </h4>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 1: Get Your API Key</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                      <li>• Go to the "API Keys" tab in your dashboard</li>
-                      <li>• Click "Generate New Key"</li>
-                      <li>• Copy the key (starts with sk_live_...)</li>
-                    </ul>
+const response = await fetch('/api/v1/optimize-route', {
+  method: 'POST',
+  headers,
+  body: JSON.stringify(routeData)
+});`}
+                    />
                   </div>
+                </CardContent>
+              </Card>
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 2: Configure Postman Request</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                      <li>• Create a new POST request</li>
-                      <li>• URL: <code className="bg-muted px-2 py-0.5 rounded text-xs">https://swift-route-liard.vercel.app/api/v1/optimize-route</code></li>
-                    </ul>
-                  </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle>JWT Bearer Token</CardTitle>
+                  <CardDescription>
+                    For dashboard users and web applications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CodeBlock
+                    id="jwt-auth"
+                    code="Authorization: Bearer your_jwt_token"
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 3: Add Headers</p>
-                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-gray-400">Key:</span> Content-Type
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Value:</span> application/json
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Key:</span> X-API-Key
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Value:</span> sk_live_your_api_key_here
-                        </div>
-                      </div>
+          {/* Route Optimization */}
+          <section id="route-optimization" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">Route Optimization</h2>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>POST /optimize-route</CardTitle>
+                  <CardDescription>
+                    Optimize routes with AI-powered analysis and vehicle-specific algorithms
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div>
+                    <h4 className="font-medium mb-3">Request Parameters</h4>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b">
+                            <th className="text-left py-2 font-medium">Parameter</th>
+                            <th className="text-left py-2 font-medium">Type</th>
+                            <th className="text-left py-2 font-medium">Required</th>
+                            <th className="text-left py-2 font-medium">Description</th>
+                          </tr>
+                        </thead>
+                        <tbody className="text-muted-foreground">
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">origin</td>
+                            <td className="py-2">[lat, lng]</td>
+                            <td className="py-2">✅</td>
+                            <td className="py-2">Starting coordinates</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">destination</td>
+                            <td className="py-2">[lat, lng]</td>
+                            <td className="py-2">✅</td>
+                            <td className="py-2">Ending coordinates</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">vehicle_type</td>
+                            <td className="py-2">string</td>
+                            <td className="py-2">✅</td>
+                            <td className="py-2">car, truck, van, motorcycle, electric_car</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">optimize_for</td>
+                            <td className="py-2">string</td>
+                            <td className="py-2">❌</td>
+                            <td className="py-2">time, distance, cost, emissions (default: time)</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">waypoints</td>
+                            <td className="py-2">[[lat, lng]]</td>
+                            <td className="py-2">❌</td>
+                            <td className="py-2">Intermediate stops (max 10)</td>
+                          </tr>
+                          <tr className="border-b">
+                            <td className="py-2 font-mono">avoid_tolls</td>
+                            <td className="py-2">boolean</td>
+                            <td className="py-2">❌</td>
+                            <td className="py-2">Avoid toll roads (default: false)</td>
+                          </tr>
+                          <tr>
+                            <td className="py-2 font-mono">alternatives</td>
+                            <td className="py-2">number</td>
+                            <td className="py-2">❌</td>
+                            <td className="py-2">Number of alternative routes (0-3, default: 2)</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 4: Add Request Body (JSON)</p>
-                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto">
-                      <pre className="text-xs">
-{`{
+                  <div>
+                    <h4 className="font-medium mb-3">Vehicle-Specific Examples</h4>
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">🚛 Truck Route</h5>
+                        <CodeBlock
+                          id="truck-example"
+                          language="json"
+                          code={`{
   "origin": [-1.2921, 36.8219],
   "destination": [-1.2864, 36.8172],
-  "vehicle_type": "car",
-  "optimize_for": "time"
+  "vehicle_type": "truck",
+  "optimize_for": "distance",
+  "avoid_tolls": true,
+  "waypoints": [[-1.2900, 36.8200]]
 }`}
-                      </pre>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 5: Send Request</p>
-                    <p className="text-sm text-muted-foreground ml-4">
-                      Click "Send" and you should receive a 200 OK response with optimized route data
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Method 2: Using Bearer Token */}
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold mb-3 flex items-center gap-2">
-                  <Key className="h-4 w-4" />
-                  Method 2: Using Bearer Token (Dashboard Session)
-                </h4>
-                <Alert className="mb-3">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    This method uses your dashboard login session. The token expires after your session ends.
-                  </AlertDescription>
-                </Alert>
-                <div className="space-y-3">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 1: Get Your Session Token</p>
-                    <ul className="text-sm text-muted-foreground space-y-1 ml-4">
-                      <li>• Open your browser's Developer Tools (F12)</li>
-                      <li>• Go to the "Application" or "Storage" tab</li>
-                      <li>• Find "Local Storage" → your domain</li>
-                      <li>• Look for Supabase auth token (usually in a key like "sb-*-auth-token")</li>
-                      <li>• Copy the "access_token" value from the JSON</li>
-                    </ul>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 2: Configure Postman Headers</p>
-                    <div className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs">
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <span className="text-gray-400">Key:</span> Content-Type
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Value:</span> application/json
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Key:</span> Authorization
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Value:</span> Bearer your_access_token_here
-                        </div>
+                        />
+                      </div>
+                      
+                      <div>
+                        <h5 className="text-sm font-medium mb-2">⚡ Electric Vehicle</h5>
+                        <CodeBlock
+                          id="ev-example"
+                          language="json"
+                          code={`{
+  "origin": [-1.2921, 36.8219],
+  "destination": [-1.2864, 36.8172],
+  "vehicle_type": "electric_car",
+  "optimize_for": "emissions",
+  "alternatives": 2
+}`}
+                        />
                       </div>
                     </div>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium">Step 3: Use Same Request Body</p>
-                    <p className="text-sm text-muted-foreground ml-4">
-                      Use the same JSON body as Method 1
-                    </p>
+          {/* JavaScript Integration */}
+          <section id="javascript" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">JavaScript/Node.js Integration</h2>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>SwiftRoute Client Class</CardTitle>
+                  <CardDescription>
+                    Reusable client for Node.js and browser applications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <CodeBlock
+                    id="js-client"
+                    language="javascript"
+                    code={`class SwiftRouteClient {
+  constructor(apiKey) {
+    this.apiKey = apiKey;
+    this.baseUrl = 'https://swift-route-liard.vercel.app/api/v1';
+  }
+
+  async optimizeRoute(params) {
+    const response = await fetch(\`\${this.baseUrl}/optimize-route\`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-API-Key': this.apiKey,
+      },
+      body: JSON.stringify(params),
+    });
+
+    if (!response.ok) {
+      throw new Error(\`API Error: \${response.status}\`);
+    }
+
+    return response.json();
+  }
+}
+
+// Usage
+const client = new SwiftRouteClient('sk_live_your_key');
+const result = await client.optimizeRoute({
+  origin: [-1.2921, 36.8219],
+  destination: [-1.2864, 36.8172],
+  vehicle_type: 'car',
+  optimize_for: 'time'
+});`}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Error Handling */}
+          <section id="error-handling" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">Error Handling</h2>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>HTTP Status Codes</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 font-medium">Code</th>
+                          <th className="text-left py-2 font-medium">Status</th>
+                          <th className="text-left py-2 font-medium">Description</th>
+                          <th className="text-left py-2 font-medium">Solution</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-muted-foreground">
+                        <tr className="border-b">
+                          <td className="py-2 font-mono">200</td>
+                          <td className="py-2 text-green-600">OK</td>
+                          <td className="py-2">Request successful</td>
+                          <td className="py-2">-</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 font-mono">400</td>
+                          <td className="py-2 text-orange-600">Bad Request</td>
+                          <td className="py-2">Invalid request format</td>
+                          <td className="py-2">Check JSON syntax and required fields</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 font-mono">401</td>
+                          <td className="py-2 text-red-600">Unauthorized</td>
+                          <td className="py-2">Invalid or missing API key</td>
+                          <td className="py-2">Verify API key in headers</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 font-mono">429</td>
+                          <td className="py-2 text-orange-600">Too Many Requests</td>
+                          <td className="py-2">Rate limit exceeded</td>
+                          <td className="py-2">Implement exponential backoff</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 font-mono">500</td>
+                          <td className="py-2 text-red-600">Internal Server Error</td>
+                          <td className="py-2">Server-side error</td>
+                          <td className="py-2">Retry with request ID for support</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
 
-              {/* Expected Response */}
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold mb-3">Expected Response (200 OK)</h4>
-                <div className="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto">
-                  <pre className="text-xs">
-{`{
-  "data": {
-    "baseline_route": {
-      "distance": 5.2,
-      "estimated_time": 12.5,
-      "cost": 0.78,
-      "co2_emissions": 0.62
-    },
-    "optimized_route": {
-      "distance": 4.8,
-      "estimated_time": 11.2,
-      "cost": 0.72,
-      "co2_emissions": 0.58
-    },
-    "improvements": {
-      "distance_saved": 0.4,
-      "time_saved": 1.3,
-      "cost_saved": 0.06,
-      "co2_saved": 0.04
+              <Card>
+                <CardHeader>
+                  <CardTitle>Retry Logic Example</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CodeBlock
+                    id="retry-logic"
+                    language="javascript"
+                    code={`async function optimizeRouteWithRetry(params, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await swiftRouteClient.optimizeRoute(params);
+    } catch (error) {
+      if (error.status === 429) {
+        // Rate limit - exponential backoff
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+      
+      if (error.status >= 500 && attempt < maxRetries) {
+        // Server error - retry
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        continue;
+      }
+      
+      throw error; // Don't retry client errors
     }
   }
 }`}
-                  </pre>
-                </div>
-              </div>
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </section>
 
-              {/* Common Errors */}
-              <div className="pt-4 border-t">
-                <h4 className="font-semibold mb-3">Common Errors</h4>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">401</Badge>
-                    <div>
-                      <p className="font-medium">Unauthorized</p>
-                      <p className="text-muted-foreground">Check your API key or Bearer token is correct</p>
-                    </div>
+          {/* Rate Limiting */}
+          <section id="rate-limiting" className="docs-section mb-16">
+            <h2 className="text-2xl font-bold mb-6">Rate Limiting</h2>
+            
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Tier-Based Limits</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-2 font-medium">Tier</th>
+                          <th className="text-left py-2 font-medium">Requests/Minute</th>
+                          <th className="text-left py-2 font-medium">Requests/Month</th>
+                          <th className="text-left py-2 font-medium">Burst Limit</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-muted-foreground">
+                        <tr className="border-b">
+                          <td className="py-2 font-medium">Trial</td>
+                          <td className="py-2">5</td>
+                          <td className="py-2">100</td>
+                          <td className="py-2">10</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 font-medium">Starter</td>
+                          <td className="py-2">10</td>
+                          <td className="py-2">1,000</td>
+                          <td className="py-2">25</td>
+                        </tr>
+                        <tr className="border-b">
+                          <td className="py-2 font-medium">Professional</td>
+                          <td className="py-2">50</td>
+                          <td className="py-2">10,000</td>
+                          <td className="py-2">100</td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 font-medium">Enterprise</td>
+                          <td className="py-2">200</td>
+                          <td className="py-2">100,000</td>
+                          <td className="py-2">500</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">400</Badge>
-                    <div>
-                      <p className="font-medium">Bad Request</p>
-                      <p className="text-muted-foreground">Verify your JSON body format and coordinate values</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 text-sm">
-                    <Badge variant="destructive">429</Badge>
-                    <div>
-                      <p className="font-medium">Rate Limit Exceeded</p>
-                      <p className="text-muted-foreground">Wait a minute or check your subscription tier limits</p>
-                    </div>
-                  </div>
-                </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Rate Limit Headers</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CodeBlock
+                    id="rate-limit-headers"
+                    code={`X-RateLimit-Limit: 50
+X-RateLimit-Remaining: 47
+X-RateLimit-Reset: 1732026777
+X-RateLimit-Retry-After: 60`}
+                  />
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="mt-16 pt-8 border-t">
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                © 2025 SwiftRoute. All rights reserved.
               </div>
-
-              {/* Tips */}
-              <Alert>
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertDescription>
-                  <p className="font-medium mb-2">Pro Tips:</p>
-                  <ul className="text-sm space-y-1">
-                    <li>• Save your request as a Postman Collection for reuse</li>
-                    <li>• Use Postman Environment Variables for your API key</li>
-                    <li>• Test different vehicle types and optimization criteria</li>
-                    <li>• Check the "Analytics" tab to see your test requests</li>
-                  </ul>
-                </AlertDescription>
-              </Alert>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Integration Guide */}
-        <TabsContent value="integration" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Book className="h-5 w-5" />
-                Integration Best Practices
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Security */}
-              <div>
-                <h4 className="font-semibold mb-3">Security</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Store API keys in environment variables, never in code</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Use HTTPS for all API requests</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Rotate API keys regularly for production systems</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Never expose API keys in client-side JavaScript</span>
-                  </li>
-                </ul>
+              <div className="flex gap-4">
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  Postman Collection
+                </Button>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <ExternalLink className="h-4 w-4" />
+                  OpenAPI Spec
+                </Button>
               </div>
-
-              {/* Error Handling */}
-              <div>
-                <h4 className="font-semibold mb-3">Error Handling</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Implement exponential backoff for rate limit errors (429)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Handle network timeouts gracefully (10s timeout recommended)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Log errors with request IDs for debugging</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Provide fallback routes when optimization fails</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Performance */}
-              <div>
-                <h4 className="font-semibold mb-3">Performance Optimization</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Cache route results for frequently requested routes (1 hour recommended)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Batch multiple route requests when possible</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Use webhooks for long-running optimizations (Enterprise tier)</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Monitor your usage to avoid unexpected overage charges</span>
-                  </li>
-                </ul>
-              </div>
-
-              {/* Testing */}
-              <div>
-                <h4 className="font-semibold mb-3">Testing</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Use trial tier for development and testing</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Test with various coordinate ranges and vehicle types</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Verify traffic and amenity data in different time zones</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Test error scenarios (invalid coordinates, rate limits)</span>
-                  </li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Support */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Need Help?</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                If you encounter issues or have questions about integration:
-              </p>
-              <ul className="space-y-2 text-sm">
-                <li>• Check the Analytics tab for usage and error logs</li>
-                <li>• Review your API key status in the API Keys tab</li>
-                <li>• Verify your subscription tier supports your use case</li>
-                <li>• Contact support with your request ID for faster resolution</li>
-              </ul>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+          </footer>
+        </main>
+      </div>
     </div>
   );
 }

@@ -227,7 +227,7 @@ curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \
 
 ## 🤝 Support & Resources
 
-- **📚 Documentation**: [Complete API Reference](https://swift-route-liard.vercel.app/dashboard)
+- **📚 Documentation**: [Complete API Reference](https://swift-route-liard.vercel.app/)
 - **🔧 Developer Tools**: [Postman Collection](./docs/postman-collection.json) • [OpenAPI Spec](./docs/openapi.yaml)
 - **🐛 Issue Tracking**: Use request IDs from API responses for support
 - **💬 Community**: [GitHub Discussions](https://github.com/swiftroute/discussions)
