@@ -742,6 +742,101 @@ export default async function handler(req, res) {
         });
       }
 
+      // Check subscription and enforce limits
+      try {
+        const { data: subscription, error: subError } = await supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+
+        if (subError && subError.code === 'PGRST116') {
+          // No subscription, create trial
+          const { data: newSubscription, error: createError } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: user.id,
+              tier: 'trial',
+              requests_per_minute: 5,
+              monthly_requests_included: 100,
+              price_per_request: '0.00',
+              status: 'active',
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          subscription = newSubscription;
+        } else if (subError) {
+          throw subError;
+        }
+
+        // Treat unpaid starter as trial
+        if (subscription && !subscription.stripe_subscription_id && subscription.tier === 'starter') {
+          subscription.tier = 'trial';
+          subscription.requests_per_minute = 5;
+          subscription.monthly_requests_included = 100;
+          subscription.price_per_request = '0.00';
+        }
+
+        // Check monthly quota
+        const now = new Date();
+        const periodStart = new Date(subscription.current_period_start);
+        const periodEnd = new Date(subscription.current_period_end);
+
+        const { data: monthlyLogs, error: monthlyError } = await supabase
+          .from('usage_logs')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', periodStart.toISOString())
+          .lte('created_at', periodEnd.toISOString());
+
+        if (monthlyError) throw monthlyError;
+
+        const monthlyRequests = monthlyLogs?.length || 0;
+        if (monthlyRequests >= subscription.monthly_requests_included) {
+          return res.status(429).json({
+            error: {
+              code: 'QUOTA_EXCEEDED',
+              message: `Monthly quota exceeded. ${monthlyRequests}/${subscription.monthly_requests_included} requests used.`,
+              retry_after: Math.ceil((periodEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) // days until reset
+            }
+          });
+        }
+
+        // Check rate limit (requests per minute)
+        const oneMinuteAgo = new Date(now.getTime() - 60 * 1000);
+        const { data: recentLogs, error: rateError } = await supabase
+          .from('usage_logs')
+          .select('id')
+          .eq('user_id', user.id)
+          .gte('created_at', oneMinuteAgo.toISOString());
+
+        if (rateError) throw rateError;
+
+        const recentRequests = recentLogs?.length || 0;
+        if (recentRequests >= subscription.requests_per_minute) {
+          return res.status(429).json({
+            error: {
+              code: 'RATE_LIMIT_EXCEEDED',
+              message: `Rate limit exceeded. ${recentRequests}/${subscription.requests_per_minute} requests per minute.`,
+              retry_after: 60 // seconds
+            }
+          });
+        }
+
+      } catch (limitError) {
+        console.error('Limit check error:', limitError);
+        return res.status(500).json({
+          error: {
+            code: 'LIMIT_CHECK_FAILED',
+            message: 'Failed to verify usage limits'
+          }
+        });
+      }
+
       try {
         // Forward request to Python handler with internal auth token
         const pythonEndpoint = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host}/api/v1/optimize-route/internal`;
