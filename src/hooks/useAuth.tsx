@@ -30,7 +30,8 @@ export function useAuth() {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    // Always redirect to dashboard after email verification for trial users
+    const redirectUrl = `${window.location.origin}/dashboard?welcome=true`;
     
     const { error } = await supabase.auth.signUp({
       email,

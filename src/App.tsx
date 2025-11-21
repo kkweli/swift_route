@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import Auth from "./pages/Auth";
 import PricingSelection from "./pages/PricingSelection";
+import RegistrationComplete from "./pages/RegistrationComplete";
 import Docs from "./pages/Docs";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +27,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/pricing" element={<PricingSelection />} />
+          <Route path="/registration-complete" element={<RegistrationComplete />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/docs" element={<Docs />} />

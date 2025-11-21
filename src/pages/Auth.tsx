@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,7 @@ const Auth = () => {
   const { signUp, signIn, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const resendVerificationEmail = async () => {
     if (!userEmail) return;
@@ -101,16 +102,13 @@ const Auth = () => {
         } else {
           toast({
             title: 'Account created successfully!',
-            description: 'Please check your email and click the verification link to activate your account.',
+            description: 'Please check your email and click the verification link to start your free trial.',
           });
-          // Show email verification message
           setUserEmail(email);
           setShowEmailVerification(true);
-          // Clear the form
           setEmail('');
           setPassword('');
           setFullName('');
-          // Switch to login tab
           setIsLogin(true);
         }
       }

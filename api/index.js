@@ -409,9 +409,9 @@ export default async function handler(req, res) {
               requests_per_minute: 5,
               monthly_requests_included: 100,
               price_per_request: '0.00',
-              payment_status: 'trial',
+              status: 'active',
               current_period_start: new Date().toISOString(),
-              current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+              current_period_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
             })
             .select()
             .single();
@@ -476,13 +476,14 @@ export default async function handler(req, res) {
       if (path.includes('/upgrade') && req.method === 'POST') {
         const { tier, stripe_customer_id, stripe_subscription_id } = req.body;
 
-        if (!['starter', 'professional', 'enterprise'].includes(tier)) {
+        if (!['trial', 'starter', 'professional', 'enterprise'].includes(tier)) {
           return res.status(400).json({
             error: { code: 'INVALID_TIER', message: 'Invalid subscription tier' }
           });
         }
 
         const tierConfig = {
+          trial: { requests_per_minute: 5, monthly_requests: 100, price: 0.00 },
           starter: { requests_per_minute: 10, monthly_requests: 1000, price: 0.01 },
           professional: { requests_per_minute: 50, monthly_requests: 10000, price: 0.008 },
           enterprise: { requests_per_minute: 200, monthly_requests: 100000, price: 0.005 }
@@ -570,13 +571,23 @@ export default async function handler(req, res) {
           });
         }
 
+        // Trial users can create API keys but with limitations
         if (subscription.tier === 'trial') {
-          return res.status(403).json({
-            error: {
-              code: 'PAID_SUBSCRIPTION_REQUIRED',
-              message: 'Paid subscription required to create custom API keys. Trial users can only use auto-generated trial keys.'
-            }
-          });
+          // Check if they already have an API key
+          const { data: existingKeys } = await supabase
+            .from('api_keys')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('status', 'active');
+          
+          if (existingKeys && existingKeys.length >= 1) {
+            return res.status(403).json({
+              error: {
+                code: 'TRIAL_LIMIT_REACHED',
+                message: 'Trial users can only create 1 API key. Upgrade to create more keys.'
+              }
+            });
+          }
         }
 
         const keyName = req.body?.name || 'API Key';

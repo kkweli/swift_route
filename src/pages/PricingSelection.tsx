@@ -113,6 +113,10 @@ export default function PricingSelection() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [selectedTier, setSelectedTier] = useState<string | null>(null);
+  
+  // Check if user just verified email
+  const isVerified = new URLSearchParams(location.search).get('verified') === 'true';
+  const preselectedTier = new URLSearchParams(location.search).get('tier');
 
   const handleSelectTier = (tier: string) => {
     setSelectedTier(tier);
@@ -169,13 +173,23 @@ export default function PricingSelection() {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Choose Your Plan</h1>
+          {isVerified && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <h2 className="text-lg font-semibold text-green-800 mb-2">✅ Email Verified Successfully!</h2>
+              <p className="text-green-700">Complete your registration by selecting a pricing plan below.</p>
+            </div>
+          )}
+          <h1 className="text-4xl font-bold mb-4">
+            {isVerified ? 'Complete Your Registration' : 'Choose Your Plan'}
+          </h1>
           <p className="text-xl text-muted-foreground">
-            Select a subscription tier to get started with SwiftRoute
+            {isVerified ? 'Select your subscription tier to start using SwiftRoute' : 'Select a subscription tier to get started with SwiftRoute'}
           </p>
-          <p className="text-sm text-muted-foreground mt-2">
-            Payment required to complete registration
-          </p>
+          {!user && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Payment required to complete registration
+            </p>
+          )}
         </div>
 
         <div className="grid md:grid-cols-4 gap-6 max-w-7xl mx-auto">
