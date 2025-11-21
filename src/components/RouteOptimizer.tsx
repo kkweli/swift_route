@@ -66,9 +66,8 @@ export function RouteOptimizer() {
     monthly_requests_included: 100,
   });
 
-  // API key state
+  // API key state - now using dashboard auth directly
   const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isCreatingTrial, setIsCreatingTrial] = useState(false);
 
   // Fetch subscription data and set up API key from auth token
   const fetchSubscription = useCallback(async () => {
@@ -114,54 +113,7 @@ export function RouteOptimizer() {
     }
   }, [user]);
 
-  const createTrialKey = useCallback(async () => {
-    if (!user || isCreatingTrial) return;
-
-    setIsCreatingTrial(true);
-    try {
-      const response = await fetch('/api/v1/optimize-route/trial/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_id: user.id,
-          email: user.email,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data && data.data.api_key) {
-          setApiKey(data.data.api_key);
-          setSubscription({
-            tier: 'trial',
-            requests_remaining: data.data.requests_remaining,
-            monthly_requests_included: data.data.requests_limit,
-            trial_end_date: data.data.trial_end_date,
-          });
-          toast({
-            title: 'Trial Started!',
-            description: `You have ${data.data.requests_limit} requests for 14 days`,
-          });
-        }
-      } else {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setApiKey(session.access_token);
-        }
-      }
-    } catch (error) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setApiKey(session.access_token);
-      }
-      toast({
-        title: 'Using Dashboard Access',
-        description: 'You can optimize routes using your dashboard login',
-      });
-    } finally {
-      setIsCreatingTrial(false);
-    }
-  }, [user, isCreatingTrial, toast]);
+  // Trial key creation removed - now using dashboard auth directly
 
   const setupAPIKey = useCallback(async () => {
     if (!user) return;
@@ -170,31 +122,12 @@ export function RouteOptimizer() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const response = await fetch('/api/v1/keys', {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const activeKeys = ((data.data as Array<{ status?: string }>) || []).filter((k) => k.status === 'active');
-
-        if (activeKeys.length > 0) {
-          setApiKey(session.access_token);
-        } else if (subscription.tier === 'trial') {
-          await createTrialKey();
-        } else {
-          setApiKey(session.access_token);
-        }
-      } else {
-        setApiKey(session.access_token);
-      }
+      // Use dashboard authentication directly for all users
+      setApiKey(session.access_token);
     } catch (error: unknown) {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setApiKey(session.access_token);
-      }
+      console.error('Error setting up API key:', error);
     }
-  }, [user, subscription.tier, createTrialKey]);
+  }, [user]);
 
   useEffect(() => {
     fetchSubscription();
