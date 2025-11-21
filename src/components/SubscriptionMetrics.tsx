@@ -78,9 +78,9 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
   const getTierColor = (tier: string) => {
     switch (tier) {
       case 'trial':
-        return 'bg-gray-500';
-      case 'starter':
         return 'bg-blue-500';
+      case 'starter':
+        return 'bg-blue-600';
       case 'professional':
         return 'bg-purple-500';
       case 'enterprise':
@@ -89,6 +89,23 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
         return 'bg-gray-500';
     }
   };
+
+  const getTierDisplayName = (tier: string) => {
+    switch (tier) {
+      case 'trial':
+        return 'Trial';
+      case 'starter':
+        return 'Starter';
+      case 'professional':
+        return 'Professional';
+      case 'enterprise':
+        return 'Enterprise';
+      default:
+        return 'Trial';
+    }
+  };
+
+  const isTrialTier = (tier: string) => tier === 'trial';
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -101,7 +118,7 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
       case 'canceled':
         return 'bg-red-500';
       default:
-        return 'bg-gray-500';
+        return isTrialTier(status) ? 'bg-blue-500' : 'bg-green-500';
     }
   };
 
@@ -118,10 +135,10 @@ export function SubscriptionMetrics({ subscription, isLoading, error, onRetry }:
           </div>
           <div className="flex gap-2">
             <Badge className={getTierColor(subscription.tier || 'trial')}>
-              {subscription.tier ? subscription.tier.charAt(0).toUpperCase() + subscription.tier.slice(1) : 'Trial'}
+              {getTierDisplayName(subscription.tier || 'trial')}
             </Badge>
-            <Badge className={getStatusColor(subscription.payment_status || 'trial')}>
-              {subscription.payment_status ? subscription.payment_status.charAt(0).toUpperCase() + subscription.payment_status.slice(1) : 'Trial'}
+            <Badge className={getStatusColor(subscription.payment_status || (isTrialTier(subscription.tier || 'trial') ? 'trial' : 'active'))}>
+              {isTrialTier(subscription.tier || 'trial') ? 'Trial' : (subscription.payment_status ? subscription.payment_status.charAt(0).toUpperCase() + subscription.payment_status.slice(1) : 'Active')}
             </Badge>
           </div>
         </div>
