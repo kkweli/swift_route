@@ -225,6 +225,104 @@ export default async function handler(req, res) {
         }
 
         if (apiKey) {
+          // Check subscription status before allowing API key usage
+          const { data: subscription, error: subError } = await supabase
+            .from('subscriptions')
+            .select('*')
+            .eq('user_id', apiKey.user_id)
+            .single();
+
+          let isSubscriptionValid = false;
+
+          if (subError && subError.code === 'PGRST116') {
+            // No subscription, create trial
+            const { data: newSubscription, error: createError } = await supabase
+              .from('subscriptions')
+              .insert({
+                user_id: apiKey.user_id,
+                tier: 'trial',
+                requests_per_minute: 5,
+                monthly_requests_included: 100,
+                price_per_request: '0.00',
+                status: 'active',
+                current_period_start: new Date().toISOString(),
+                current_period_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+              })
+              .select()
+              .single();
+
+            if (!createError && newSubscription) {
+              subscription = newSubscription;
+              isSubscriptionValid = true;
+            }
+          } else if (!subError && subscription) {
+            // Treat unpaid starter as trial
+            if (!subscription.stripe_subscription_id && subscription.tier === 'starter') {
+              subscription.tier = 'trial';
+            }
+
+            // Check if subscription is active and within limits
+            const now = new Date();
+            const periodEnd = new Date(subscription.current_period_end);
+
+            if (subscription.status === 'active' && now <= periodEnd) {
+              // Check monthly usage
+              const periodStart = new Date(subscription.current_period_start);
+              const { data: monthlyLogs } = await supabase
+                .from('usage_logs')
+                .select('id')
+                .eq('user_id', apiKey.user_id)
+                .gte('created_at', periodStart.toISOString())
+                .lte('created_at', periodEnd.toISOString());
+
+              const monthlyRequests = monthlyLogs?.length || 0;
+
+              if (monthlyRequests < subscription.monthly_requests_included) {
+                isSubscriptionValid = true;
+              }
+            }
+          }
+
+          if (!isSubscriptionValid) {
+            // Disable all API keys for this user
+            const { data: disabledKeys } = await supabase
+              .from('api_keys')
+              .update({ status: 'disabled', disabled_reason: 'subscription_expired' })
+              .eq('user_id', apiKey.user_id)
+              .eq('status', 'active')
+              .select('id, name');
+
+            // Log disablement event and prepare email notification
+            await supabase
+              .from('usage_logs')
+              .insert({
+                user_id: apiKey.user_id,
+                endpoint: '/api/v1/optimize-route',
+                method: 'POST',
+                status_code: 403,
+                response_time_ms: 0,
+                error_code: 'SUBSCRIPTION_EXPIRED',
+                metadata: {
+                  event: 'api_keys_disabled',
+                  disabled_keys: disabledKeys?.map(k => ({ id: k.id, name: k.name })) || [],
+                  reason: 'subscription_expired',
+                  notification: {
+                    type: 'email',
+                    subject: 'API Keys Disabled - Subscription Issue',
+                    message: 'Your API keys have been disabled due to subscription expiration or limit exceeded. Please renew your subscription to restore access.'
+                  }
+                }
+              });
+
+            return res.status(403).json({
+              error: {
+                code: 'SUBSCRIPTION_EXPIRED',
+                message: 'Your subscription has expired or limits exceeded. All API keys have been disabled.',
+                redirect_url: 'https://swift-route-liard.vercel.app/dashboard'
+              }
+            });
+          }
+
           // Get user associated with API key
           try {
             const userResult = await withTimeout(supabase.auth.admin.getUserById(apiKey.user_id), 5000);
@@ -566,36 +664,64 @@ export default async function handler(req, res) {
       if (req.method === 'POST') {
         const { data: subscription, error: subError } = await supabase
           .from('subscriptions')
-          .select('tier')
+          .select('*')
           .eq('user_id', user.id)
           .single();
 
-        if (subError || !subscription) {
+        if (subError && subError.code === 'PGRST116') {
+          // No subscription, create trial
+          const { data: newSubscription, error: createError } = await supabase
+            .from('subscriptions')
+            .insert({
+              user_id: user.id,
+              tier: 'trial',
+              requests_per_minute: 5,
+              monthly_requests_included: 100,
+              price_per_request: '0.00',
+              status: 'active',
+              current_period_start: new Date().toISOString(),
+              current_period_end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+            })
+            .select()
+            .single();
+
+          if (createError) throw createError;
+          subscription = newSubscription;
+        } else if (subError) {
+          throw subError;
+        }
+
+        // Treat unpaid starter as trial
+        if (subscription && !subscription.stripe_subscription_id && subscription.tier === 'starter') {
+          subscription.tier = 'trial';
+        }
+
+        // Block trial users from creating API keys
+        if (subscription.tier === 'trial') {
           return res.status(403).json({
             error: {
               code: 'SUBSCRIPTION_REQUIRED',
-              message: 'Active subscription required to create API keys'
+              message: 'API key generation requires a paid subscription. Please upgrade to Starter or higher tier.',
+              redirect_url: 'https://swift-route-liard.vercel.app/dashboard'
             }
           });
         }
 
-        // Trial users can create API keys but with limitations
-        if (subscription.tier === 'trial') {
-          // Check if they already have an API key
-          const { data: existingKeys } = await supabase
-            .from('api_keys')
-            .select('id')
-            .eq('user_id', user.id)
-            .eq('status', 'active');
-          
-          if (existingKeys && existingKeys.length >= 1) {
-            return res.status(403).json({
-              error: {
-                code: 'TRIAL_LIMIT_REACHED',
-                message: 'Trial users can only create 1 API key. Upgrade to create more keys.'
-              }
-            });
-          }
+        // Check if user has reached the 5-key limit
+        const { data: existingKeys } = await supabase
+          .from('api_keys')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'active');
+
+        if (existingKeys && existingKeys.length >= 5) {
+          return res.status(403).json({
+            error: {
+              code: 'KEY_LIMIT_REACHED',
+              message: 'Maximum of 5 API keys allowed per user. Please rotate or delete existing keys.',
+              existing_keys_count: existingKeys.length
+            }
+          });
         }
 
         const keyName = req.body?.name || 'API Key';
@@ -616,6 +742,27 @@ export default async function handler(req, res) {
           .single();
 
         if (error) throw error;
+
+        // Log key generation event and prepare email notification
+        await supabase
+          .from('usage_logs')
+          .insert({
+            user_id: user.id,
+            endpoint: '/api/v1/keys',
+            method: 'POST',
+            status_code: 201,
+            response_time_ms: 0,
+            error_code: null,
+            metadata: {
+              event: 'api_key_created',
+              key_id: newKey.id,
+              notification: {
+                type: 'email',
+                subject: 'New API Key Generated',
+                message: `A new API key "${newKey.name}" has been generated for your SwiftRoute account.`
+              }
+            }
+          });
 
         return res.status(201).json({
           data: {
@@ -641,7 +788,7 @@ export default async function handler(req, res) {
         // Ensure the key belongs to the requesting user
         const { data: existingKey, error: getError } = await supabase
           .from('api_keys')
-          .select('id, user_id, status')
+          .select('id, user_id, status, name')
           .eq('id', id)
           .single();
 
@@ -664,7 +811,11 @@ export default async function handler(req, res) {
 
         const { data: updatedKey, error: updateError } = await supabase
           .from('api_keys')
-          .update({ key_hash: newKeyHash, key_prefix: newKeyPrefix })
+          .update({
+            key_hash: newKeyHash,
+            key_prefix: newKeyPrefix,
+            last_rotated: new Date().toISOString()
+          })
           .eq('id', id)
           .select()
           .single();
@@ -673,13 +824,36 @@ export default async function handler(req, res) {
           return res.status(500).json({ error: { code: 'UPDATE_FAILED', message: updateError.message } });
         }
 
+        // Log key rotation event and prepare email notification
+        await supabase
+          .from('usage_logs')
+          .insert({
+            user_id: user.id,
+            endpoint: '/api/v1/keys/regenerate',
+            method: 'POST',
+            status_code: 200,
+            response_time_ms: 0,
+            error_code: null,
+            metadata: {
+              event: 'api_key_rotated',
+              key_id: updatedKey.id,
+              key_name: existingKey.name,
+              notification: {
+                type: 'email',
+                subject: 'API Key Rotated',
+                message: `Your API key "${existingKey.name}" has been rotated. The old key is no longer valid.`
+              }
+            }
+          });
+
         return res.status(200).json({
           data: {
             id: updatedKey.id,
             key: newApiKey,
-            key_prefix: newKeyPrefix
+            key_prefix: newKeyPrefix,
+            name: existingKey.name
           },
-          message: 'API key regenerated. Save this key now - it will not be shown again.'
+          message: 'API key regenerated successfully. Save this key now - it will not be shown again.'
         });
       }
 

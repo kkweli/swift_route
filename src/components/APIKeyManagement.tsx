@@ -17,15 +17,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { 
-  Key, 
-  Copy, 
-  Trash2, 
-  Plus, 
+import {
+  Key,
+  Copy,
+  Trash2,
+  Plus,
   CheckCircle,
   AlertTriangle,
   Eye,
-  EyeOff
+  EyeOff,
+  RotateCcw
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -133,10 +134,16 @@ export function APIKeyManagement() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.error?.code === 'PAID_SUBSCRIPTION_REQUIRED') {
+        if (data.error?.code === 'SUBSCRIPTION_REQUIRED') {
           toast({
             title: 'Paid Subscription Required',
             description: 'Upgrade to a paid plan to create custom API keys',
+            variant: 'destructive'
+          });
+        } else if (data.error?.code === 'KEY_LIMIT_REACHED') {
+          toast({
+            title: 'Key Limit Reached',
+            description: 'Maximum of 5 API keys allowed. Please rotate or delete existing keys.',
             variant: 'destructive'
           });
         } else {
@@ -160,6 +167,54 @@ export function APIKeyManagement() {
       toast({
         title: 'Error',
         description: 'Failed to generate API key',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Rotate API key
+  const rotateKey = async (keyId: string) => {
+    if (!confirm('Are you sure you want to rotate this API key? The old key will be invalidated and you\'ll get a new one.')) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No session');
+
+      const response = await fetch('/api/v1/keys/regenerate', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id: keyId })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Failed to rotate key');
+      }
+
+      setNewGeneratedKey(data.data.key);
+      setShowNewKeyDialog(true);
+
+      toast({
+        title: 'Success',
+        description: 'API key rotated successfully'
+      });
+
+      // Refresh keys list
+      await fetchKeys();
+    } catch (error) {
+      console.error('Error rotating key:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to rotate API key',
         variant: 'destructive'
       });
     } finally {
@@ -309,14 +364,24 @@ export function APIKeyManagement() {
                       <Copy className="w-4 h-4" />
                     </Button>
                     {key.status === 'active' && subscriptionTier !== 'trial' && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => revokeKey(key.id)}
-                        disabled={isLoading}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => rotateKey(key.id)}
+                          disabled={isLoading}
+                        >
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => revokeKey(key.id)}
+                          disabled={isLoading}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </>
                     )}
                     {subscriptionTier === 'trial' && (
                       <Badge variant="secondary">Trial Key</Badge>
