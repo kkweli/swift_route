@@ -210,24 +210,26 @@ curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \
 
 ## 🔐 Security & Authentication
 
-- **API Key Authentication**: Secure key-based access with rate limiting
+- **API Key Authentication**: Secure key-based access with enforced rate limiting
 - **JWT Bearer Tokens**: Dashboard user authentication with session management
-- **Rate Limiting**: Tier-based request limits with intelligent throttling
+- **Quota Enforcement**: Monthly request limits strictly enforced per subscription tier
+- **Rate Limiting**: Per-minute limits with automatic throttling and clear error responses
 - **Data Privacy**: No PII storage, secure credential handling
 - **HTTPS Encryption**: All communications encrypted in transit
+- **Usage Analytics**: Real-time request tracking and billing integration
 
 ## 📈 Pricing Tiers
 
 | Tier | Requests/Month | Rate Limit | Best For |
 |------|----------------|------------|----------|
-| **Trial** | 100 | 5/min | Testing & Development |
-| **Starter** | 1,000 | 10/min | Small Fleets |
-| **Professional** | 10,000 | 50/min | Growing Businesses |
-| **Enterprise** | 100,000 | 200/min | Large Operations |
+| **Trial** | 100 (enforced) | 5/min (enforced) | Testing & Development |
+| **Starter** | 1,000 (enforced) | 10/min (enforced) | Small Fleets |
+| **Professional** | 10,000 (enforced) | 50/min (enforced) | Growing Businesses |
+| **Enterprise** | 100,000 (enforced) | 200/min (enforced) | Large Operations |
 
 ## 🤝 Support & Resources
 
-- **📚 Documentation**: [Complete API Reference](https://swift-route-liard.vercel.app/)
+- **📚 Documentation**: [Complete API Reference](https://swift-route-liard.vercel.app/dashboard) (Login Required)
 - **🔧 Developer Tools**: [Postman Collection](./docs/postman-collection.json) • [OpenAPI Spec](./docs/openapi.yaml)
 - **🐛 Issue Tracking**: Use request IDs from API responses for support
 - **💬 Community**: [GitHub Discussions](https://github.com/swiftroute/discussions)
@@ -246,7 +248,7 @@ curl -X POST https://swift-route-liard.vercel.app/api/v1/optimize-route \
 
 **Built for sustainable urban logistics** 🌱
 
-[**Get Started**](https://swift-route-liard.vercel.app/) • [**View Documentation**](https://swift-route-liard.vercel.app/dashboard) • [**API Reference**](./docs/api-documentation.md)
+[**Get Started**](https://swift-route-liard.vercel.app/) • [**View Documentation**](https://swift-route-liard.vercel.app/dashboard) • [**API Reference**](https://swift-route-liard.vercel.app/dashboard)
 
 *Empowering logistics companies to reduce costs and environmental impact through intelligent route optimization*
 
